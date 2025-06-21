@@ -1,11 +1,13 @@
 //! Interrupts for the DW3XXX.
 //! 
 
+/// 
 /// An interrupt from the DW3XXX
 /// 
 /// The enum representation values are equal to the offest of each interrupt bit within the interrupt registers. It should be noted, however,
 /// that the interrupt bits are not continuous within the register, so there are index values for which there is no corresponding interrupt.
 /// Moreover, the interrupt registers span two 32-bit sub-registers, so the indices range from 0 to 64.
+/// 
 pub enum Interrupt {
     Cplock  = 1,
     Spicrce = 2,

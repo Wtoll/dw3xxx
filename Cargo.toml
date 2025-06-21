@@ -5,7 +5,10 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "An experimental driver crate for the DW3XXX series of UWB ranging modules."
 readme = "README.md"
-repository = "https://github.com/wtoll/dw3xxx"
+repository = "http://github.com/wtoll/dw3xxx"
+documentation = "http://docs.rs/dw3xxx"
+keywords = ["driver", "embedded-hal", "uwb"]
+categories = ["embedded", "no-std", "hardware-support"]
 
 [dependencies]
 embedded-hal-nb = "1.0.0"
