@@ -1,4 +1,4 @@
-//! High-level interface for the DW3XXX
+//! The high-level interface for the DW3XXX
 //! 
 
 /// High-level driver for the DW3XXX

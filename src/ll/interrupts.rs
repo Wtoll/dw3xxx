@@ -1,4 +1,4 @@
-//! Interrupts for the DW3XXX
+//! Interrupts for the DW3XXX.
 //! 
 
 /// An interrupt from the DW3XXX

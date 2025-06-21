@@ -390,7 +390,8 @@ impl TransactionHeaderBuilder<1> {
     /// Sets the fast command type of a short SPI transaction header.
     /// 
     /// It should be noted that this method only sets the middle five bits of the short SPI transaction header to the provided command,
-    /// and does not properly format the rest of the header with the correct access mode or transaction type. Instead see [`set_fast_command`].
+    /// and does not properly format the rest of the header with the correct access mode or transaction type. Instead see
+    /// [`set_fast_command`](TransactionHeaderBuilder::set_fast_command).
     pub const fn set_fast_command_type(&mut self, command: Command) -> &mut Self {
         self.set_five_bits(command as u8)
     }

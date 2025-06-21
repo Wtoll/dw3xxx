@@ -1,4 +1,4 @@
-//! Helper functions for executing fast commands
+//! Helper functions for executing fast commands.
 //! 
 
 /// A fast command
