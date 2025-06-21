@@ -12,7 +12,7 @@ $ cargo add dw3xxx
 or add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-dw3xxx = "0.1.0"
+dw3xxx = "0.2.0"
 ```
 
 ## Roadmap
