@@ -19,18 +19,18 @@ dw3xxx = "0.1.0"
 
 This crate is still a work in progress, however, the following is a list of currently implemented features and features that have yet to be implemented.
 
-[X] Low-level register bindings
-    [ ] Sanity checked by an actual human being
+ - [X] Low-level register bindings
+     - [ ] Sanity checked by an actual human being
         * Partially complete
-[X] SPI transaction helper functions
-[ ] SPI device implementation using `embedded-hal` traits
-[ ] Functions for executing device fast commands
+ - [X] SPI transaction helper functions
+ - [ ] SPI device implementation using `embedded-hal` traits
+ - [ ] Functions for executing device fast commands
     * Partially complete
-[ ] Smart interrupt handling
+ - [ ] Smart interrupt handling
     * Partially complete
-[ ] High-level driver interface
-[ ] Device soft-reset protocol
-[ ] Two-way ranging protocols
+ - [ ] High-level driver interface
+ - [ ] Device soft-reset protocol
+ - [ ] Two-way ranging protocols
 
 ## Alternatives
 
