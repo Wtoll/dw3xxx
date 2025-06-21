@@ -1,4 +1,5 @@
 # DW3XXX
+[![crates.io](https://img.shields.io/crates/v/dw3xxx.svg)](https://crates.io/crates/dw3xxx) [![Documentation](https://docs.rs/dw3xxx/badge.svg)](https://docs.rs/dw3xxx)
 
 !! WARNING: WIP !!
 
