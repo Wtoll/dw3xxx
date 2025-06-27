@@ -1,19 +1,19 @@
 //! Static mappings for the registers of the DW3XXX.
-//! 
+//!
 //! <div class="warning">
 //! These mappings were not created entirely by hand, so there is a chance that they may not be correct. The register mappings that have
 //! been verified by a human to be correct are labeled as such, but otherwise use at your own risk. If you would like to open a pull-request to
 //! verify a specific register yourself and change the documentation accordingly that would be much appreciated.
 //! </div>
-//! 
+//!
 //! # Structure
-//! 
+//!
 //! This module contains a series of types that implement the [`Register`] trait for each register of the device. Additionally, for each
 //! register there is a submodule that contains a series of types for each individual field of that respective register that each implement
 //! the [`Field`] trait. On their own these types do nothing, but their implementations of [`Register`] and [`Field`] contain the necessary
 //! constants and types to statically reference that particular location within the device's register map. For more details see the
 //! documentation for the [`Register`], [`Field`], [`Readable`], and [`Writable`] traits.
-//! 
+//!
 
 /// A register of the DW3XXX.
 pub trait Register {
@@ -42,7 +42,9 @@ pub trait Field {
 /// A marker trait for a readable field.
 pub trait Readable: Field {
     /// Read the field from the register.
-    fn read(register: &<<Self as Field>::Register as Register>::RegisterView) -> <Self as Field>::Value {
+    fn read(
+        register: &<<Self as Field>::Register as Register>::RegisterView,
+    ) -> <Self as Field>::Value {
         todo!()
     }
 }
@@ -50,38 +52,45 @@ pub trait Readable: Field {
 /// A marker trait for a writable field.
 pub trait Writable: Field {
     /// Write the field to the register.
-    fn write(register: &mut <<Self as Field>::Register as Register>::RegisterView, value: <Self as Field>::Value) {
+    fn write(
+        register: &mut <<Self as Field>::Register as Register>::RegisterView,
+        value: <Self as Field>::Value,
+    ) {
         todo!()
     }
 }
 
-/// 
+///
 /// A helper macro to generate structured register and field structs organized into modules.
-/// 
+///
 /// The declaration for each register is structured as follows:
 /// ```markdown
 /// /// Register documentation
-/// [BASE_ADDRESS], [SUB_ADDRESS], [LENGTH], [RO or RW], NAME(name) {
+/// [{BASE_ADDRESS}, {SUB_ADDRESS}, {LENGTH}, {RO, WO or RW}, NAME(name)] {
 ///     /// Field documentation
 ///     FIELD_NAME, [FIRST_BIT], [SIZE], [TYPE]
 ///     /// Field documentation
 ///     FIELD_NAME, [FIRST_BIT], [SIZE], [TYPE]
-/// 
+///
 ///     ...
 /// }
 /// ```
-/// 
+///
 macro_rules! impl_registers {
     (
         $(
-            #[$doc:meta]
-            $base_address:expr,
+            $(
+                #[$doc:meta]
+            )*
+            [$base_address:expr,
             $sub_address:expr,
             $reg_len:expr,
             $rw:tt,
-            $reg_name:ident($reg_name_lower:ident) {
+            $reg_name:ident($reg_name_lower:ident)] {
             $(
-                #[$field_doc:meta]
+                $(
+                    #[$field_doc:meta]
+                )*
                 $field_name:ident,
                 $field_start:expr,
                 $field_size:expr,
@@ -91,7 +100,9 @@ macro_rules! impl_registers {
         )*
     ) => {
         $(
-            #[$doc]
+            $(
+                #[$doc]
+            )*
             #[doc = ""]
             #[doc = " # Fields"]
             #[doc = ""]
@@ -117,7 +128,9 @@ macro_rules! impl_registers {
             #[doc = concat!(" Types for the fields within the register [`", stringify!($reg_name), "`].")]
             pub mod $reg_name_lower {
                 $(
-                    #[$field_doc]
+                    $(
+                        #[$field_doc]
+                    )*
                     #[doc = ""]
                     #[doc = " # Parent Register"]
                     #[doc = ""]
@@ -143,24 +156,21 @@ macro_rules! impl_registers {
 
 /// A helper macro for use in the [`impl_registers`] macro to generate implementations of the [`Readable`] and [`Writable`] traits for fields.
 macro_rules! impl_rw {
-    (RO, $field_name:ident) => {
-        impl_rw!(@R, $field_name);
-    };
     (RW, $field_name:ident) => {
-        impl_rw!(@R, $field_name);
-        impl_rw!(@W, $field_name);
+        impl_rw!(RO, $field_name);
+        impl_rw!(WO, $field_name);
     };
-    (@R, $field_name:ident) => {
-        impl super::Readable for $field_name { }
+    (RO, $field_name:ident) => {
+        impl super::Readable for $field_name {}
     };
-    (@W, $field_name:ident) => {
-        impl super::Writable for $field_name { }
+    (WO, $field_name:ident) => {
+        impl super::Writable for $field_name {}
     };
 }
 
 impl_registers! {
     /// Device identifier
-    0x00, 0x00, 4, RO, DEV_ID(dev_id) {
+    [0x00, 0x00, 4, RO, DEV_ID(dev_id)] {
         /// Revision
         REV, 0, 4,  u8;
         /// Version
@@ -171,19 +181,19 @@ impl_registers! {
         RIDTAG, 16, 16,  u16;
     }
     /// Extended Unique Identifier
-    0x00, 0x04, 8, RW, EUI(eui) {
+    [0x00, 0x04, 8, RW, EUI(eui)] {
         /// Extended Unique Identifier
         VALUE, 0, 64,  u64;
     }
     /// PAN Identifier and Short Address
-    0x00, 0x0C, 4, RW, PANADR(panadr) {
+    [0x00, 0x0C, 4, RW, PANADR(panadr)] {
         /// Short Address
         SHORT_ADDR, 0, 16,  u16;
         /// PAN Identifier
         PAN_ID, 16, 16,  u16;
     }
     /// System Configuration
-    0x00, 0x10, 4, RW, SYS_CFG(sys_cfg) {
+    [0x00, 0x10, 4, RW, SYS_CFG(sys_cfg)] {
         /// Frame Filtering Enable
         FFEN, 0, 1,  u8;
         /// disable auto-FCS Transmission
@@ -217,53 +227,195 @@ impl_registers! {
         /// enable fast RX to TX turn around mode
         FAST_AAT, 18, 1,  u8;
     }
-    /// comments
-    0x00, 0x14, 2, RW, FF_CFG(ff_cfg) {
+    ///
+    /// Frame Filter Configuration Bit Map
+    ///
+    /// <div class="Warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    /// IEEE802.15.4 standard frames begin with three bits, indicating the frame type, as follows:
+    ///
+    /// | Bits | Frame Type      |
+    /// |-----:|:----------------|
+    /// |  000 | Beacon          |
+    /// |  001 | Data            |
+    /// |  010 | Acknowledgement |
+    /// |  011 | MAC             |
+    /// |  100 | Reserved        |
+    /// |  101 | Multipurpose    |
+    /// |  110 | Fragmented      |
+    /// |  111 | Extended        |
+    ///
+    /// This register contains a bit map that allows the receiver to filter which frames it will accept based on type and
+    /// destination address. For any of these bits to apply, however, frame filtering must also be enabled using the
+    /// [FFEN](sys_cfg::FFEN) bit in the [SYS_CFG] register.
+    ///
+    /// For more information on frame filtering please see the [DW3000 User Manual](https://www.qorvo.com/products/d/da008154)
+    /// section 5.4 "Frame filtering".
+    ///
+    [0x00, 0x14, 2, RW, FF_CFG(ff_cfg)] {
+        ///
         /// Frame Filtering Allow Beacon
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Beacon" type (binary 000) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAB, 0, 1,  u8;
+        ///
         /// Frame Filtering Allow Data
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Data" type (binary 001) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAD, 1, 1,  u8;
+        ///
         /// Frame Filtering Allow Acknowledgement
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Acknowledgement" type (binary 010) in
+        /// their header. For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAA, 2, 1,  u8;
+        ///
         /// Frame Filtering Allow MAC Command Frame
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "MAC" type (binary 011) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAM, 3, 1,  u8;
+        ///
         /// Frame Filtering Allow Reserved
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Reserved" type (binary 100) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAR, 4, 1,  u8;
+        ///
         /// Frame Filtering Allow Multipurpose
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Multipurpose" type (binary 101) in
+        /// their header. For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAMULTI, 5, 1,  u8;
+        ///
         /// Frame Filtering Allow Fragmented
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Fragmented" type (binary 110) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAF, 6, 1,  u8;
-        /// Frame Filtering Allow extended frame
+        ///
+        /// Frame Filtering Allow Extended
+        ///
+        /// When this bit is 0 the frame filtering will ignore frames with the "Extended" type (binary 111) in their header.
+        /// For more information see [FF_CFG](super::FF_CFG).
+        ///
         FFAE, 7, 1,  u8;
+        ///
         /// Frame Filtering Behave As Coordinator
+        ///
+        /// When this bit is enabled the device will operate as a PAN Coordinator meaning it will only accept frames that match
+        /// the following criteria:
+        /// * For "MAC" and "Data" type frames the source PAN ID must match that set in [PAN_ID](super::panadr::PAN_ID)
+        /// * For "Multipurpose" type frames the destination PAN ID must match that set in [PAN_ID](super::panadr::PAN_ID)
+        ///
         FFBC, 8, 1,  u8;
-        /// Frame Filtering Allow MAC
+        ///
+        /// Frame Filtering Allow MAC Implicit Broadcast
+        ///
+        /// When this bit is 0, then the destination addressing (PAN ID and destination address fields, as appropriate) of
+        /// received frames must either be set to broadcast (0xFFFF) or a specific destination address, otherwise the frame will be
+        /// rejected. When this bit is 1, then frames without a destination PAN ID and destination address are treated as
+        /// though they are addressed to the broadcast PAN ID and broadcast short (16-bit) address.
+        ///
         FFIB, 9, 1,  u8;
-        /// Data pending for device at led0 addr
+        ///
+        /// Data pending for device at LE0 addr
+        ///
+        /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
+        /// set in [LE_ADDR0](super::le_pend_01::LE_ADDR0) of the [LE_PEND_01](super::LE_PEND_01) register then the automatically
+        /// transmitted ACK frame will have the PEND bit set.
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
         LE0_PEND, 10, 1,  u8;
-        /// Data pending for device at led1 addr
+        /// Data pending for device at LE1 addr
+        ///
+        /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
+        /// set in [LE_ADDR1](super::le_pend_01::LE_ADDR1) of the [LE_PEND_01](super::LE_PEND_01) register then the automatically
+        /// transmitted ACK frame will have the PEND bit set.
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
         LE1_PEND, 11, 1,  u8;
-        /// Data pending for device at led2 addr
+        ///
+        /// Data pending for device at LE2 addr
+        ///
+        /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
+        /// set in [LE_ADDR2](super::le_pend_23::LE_ADDR2) of the [LE_PEND_23](super::LE_PEND_23) register then the automatically
+        /// transmitted ACK frame will have the PEND bit set.
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
         LE2_PEND, 12, 1,  u8;
-        /// Data pending for device at led3 addr
+        ///
+        /// Data pending for device at LE3 addr
+        ///
+        /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
+        /// set in [LE_ADDR3](super::le_pend_23::LE_ADDR2) of the [LE_PEND_23](super::LE_PEND_23) register then the automatically
+        /// transmitted ACK frame will have the PEND bit set.
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
         LE3_PEND, 13, 1,  u8;
-        /// Short Source Address Data Request
-        SSADRAP, 14, 1,  u8;
-        /// Long Source Address Data Request
+        ///
+        /// Short Source Address Data Request Acknowledge With Pending
+        ///
+        /// When this bit is 0 and the device receives a Data Request MAC Command frame from any node with a short
+        /// (16-bit) source address then the automatically transmitted ACK frame will follow the frame filtering rules
+        /// defined by the [LE0_PEND], [LE1_PEND], [LE2_PEND], and [LE3_PEND] fields.
+        ///
+        /// When this bit is 1 and the device receives a Data Request MAC Command frame from any node with a short
+        /// (16-bit) source address then the automatically transmitted ACK frame will have the PEND bit set
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
+        SSADRAPE, 14, 1,  u8;
+        ///
+        /// Long Source Address Data Request Acknowledge With Pending
+        ///
+        /// When the device receives a Data Request MAC Command frame from any node with a long (64-bit) source address
+        /// then the automatically transmitted ACK frame will have the PEND bit set if this bit is 1 and will not have
+        /// the PEND bit set if this bit is 0.
+        ///
+        /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [super::SYS_CFG] register.
+        ///
         LSADRAPE, 15, 1,  u8;
     }
     /// SPI CRC read status
-    0x00, 0x18, 1, RO, SPI_RD_CRC(spi_rd_crc) {
+    [0x00, 0x18, 1, RO, SPI_RD_CRC(spi_rd_crc)] {
         /// SPI CRC read status
         VALUE, 0, 8,  u8;
     }
     ///  System Time Counter register
-    0x00, 0x1C, 4, RO, SYS_TIME(sys_time) {
+    [0x00, 0x1C, 4, RO, SYS_TIME(sys_time)] {
         /// System Time Counter register
         VALUE, 0, 32,  u32;
     }
+    ///
     /// TX Frame Control
-    0x00, 0x24, 6, RW, TX_FCTRL(tx_fctrl) {
+    ///
+    /// <div class="Warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x24, 6, RW, TX_FCTRL(tx_fctrl)] {
         /// TX Frame Length
         TXFLEN, 0, 10,  u16;
         /// Transmit Bit Rate
@@ -277,28 +429,62 @@ impl_registers! {
         /// Fine PSR control
         FINE_PLEN, 40, 8,  u8;
     }
+    ///
     /// Delayed Send or Receive Time
-    0x00, 0x2C, 4, RW, DX_TIME(dx_time) {
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x2C, 4, RW, DX_TIME(dx_time)] {
+        ///
         /// Delayed Send or Receive Time
+        ///
+        /// The value in this register is added to [DREF_TIME](super::DREF_TIME) before either the receiver or transmitter is
+        /// turned on.
+        ///
+        /// The units are one half of the 499.2 MHz fundamental frequency (≈ 4 ns). The least significant bit of this register is
+        /// ignored, so the smallest value that can be specified is 2 (≈ 8 ns).
+        ///
         VALUE, 0, 32,  u32;
     }
-    ///  Delayed send or receive reference time
-    0x00, 0x30, 4, RW, DREF_TIME(dref_time) {
+    ///
+    /// Delayed send or receive reference time
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x30, 4, RW, DREF_TIME(dref_time)] {
+        ///
         /// Delayed send or receive reference time
+        ///
+        /// Used to specify a time at which an an event happened (e.g. beacon was sent). Any value in [DX_TIME](super::DX_TIME)
+        /// is added to this register before either the receiver or transmitter is turned on.
+        ///
+        /// The units are one half of the 499.2 MHz fundamental frequency (≈ 4 ns). The least significant bit
+        /// of this register is ignored, so the smallest value that can be specified is 2 (≈ 8 ns).
+        ///
         VALUE, 0, 32,  u32;
     }
     /// Receive frame wait timeout period
-    0x00, 0x34, 3, RW, RX_FWTO(rx_fwto) {
+    [0x00, 0x34, 3, RW, RX_FWTO(rx_fwto)] {
         /// Receive frame wait timeout period
         VALUE, 0, 24,  u32;
     }
     /// System Control Register
-    0x00, 0x38, 1, RW, SYS_CTRL(sys_ctrl) {
+    [0x00, 0x38, 1, RW, SYS_CTRL(sys_ctrl)] {
         /// System control
         VALUE, 0, 8,  u8;
     }
-    /// System event enable mask register
-    0x00, 0x3C, 6, RW, SYS_ENABLE(sys_enable) {
+    ///
+    /// System Event Mask Register
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x3C, 6, RW, SYS_ENABLE(sys_enable)] {
         /// Mask clock PLL lock event
         CPLOCK_EN, 1, 1,  u8;
         /// Mask SPI CRC Error event
@@ -376,8 +562,14 @@ impl_registers! {
         /// Mask CCA fail interrupt event
         CCA_FAIL_EN, 44, 1,  u8;
     }
+    ///
     /// System Event Status Register
-    0x00, 0x44, 6, RW, SYS_STATUS(sys_status) {
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x44, 6, RW, SYS_STATUS(sys_status)] {
         /// Interrupt Request Status
         IRQS, 0, 1,  u8;
         /// Clock PLL Lock
@@ -458,7 +650,7 @@ impl_registers! {
         CCA_FAIL, 43, 1,  u8;
     }
     /// RX Frame Information
-    0x00, 0x4C, 4, RO, RX_FINFO(rx_finfo) {
+    [0x00, 0x4C, 4, RO, RX_FINFO(rx_finfo)] {
         /// Receive Frame Length
         RXFLEN, 0, 10,  u16;
         /// Receive Non-Standard Preamble Length
@@ -474,75 +666,160 @@ impl_registers! {
         /// Preamble Accumulation Count
         RXPACC, 20, 12,  u16;
     }
-    /// Receive Time Stamp
-    0x00, 0x64, 5, RO, RX_TIME(rx_time) {
-        /// Fully adjusted time stamp
+    ///
+    /// Receive Timestamp
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x64, 16, RO, RX_TIME(rx_time)] {
+        ///
+        /// Fully adjusted timestamp of reception
+        ///
+        /// The least significant bit is roughly equivalent to 15.65ps (<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mrow><mn>128</mn><mo>(</mo><mn>499.2</mn><mo>&#xd7;</mo><msup><mn>10</mn><mrow><mo>-</mo><mn>6</mn></mrow></msup><mo>)</mo></mrow></mfrac></math>).
+        ///
+        /// The value is available here when the leading edge determination and timestamp adjustments
+        /// are completed (when the [CIADONE](super::sys_status::CIADONE) event status flag bit is set).
+        ///
         RX_STAMP, 0, 40,  u64;
+        ///
+        /// Raw timestamp of reception
+        ///
+        /// the value of the system clock captured at start of the PHR. The precision is approximately 125 MHz (8 ns),
+        /// i.e. the least significant bit is zero.
+        ///
+        RX_RAWST, 64, 32, u32;
     }
-    /// Raw receive time stamp
-    0x00, 0x70, 4, RO, RX_RAWST(rx_rawst) {
-        /// Raw receive time stamp
-        VALUE, 0, 32,  u32;
-    }
-    /// Transmit Time Stamp
-    0x00, 0x74, 5, RO, TX_TIME(tx_time) {
-        /// Fully adjusted time stamp
+    ///
+    /// Transmit Timestamp
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x00, 0x74, 5, RO, TX_TIME(tx_time)] {
+        ///
+        /// Fully adjusted time of transmission
+        ///
+        /// The least significant bit is roughly equivalent to 15.65ps (<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mrow><mn>128</mn><mo>(</mo><mn>499.2</mn><mo>&#xd7;</mo><msup><mn>10</mn><mrow><mo>-</mo><mn>6</mn></mrow></msup><mo>)</mo></mrow></mfrac></math>).
+        /// The value becomes available here after the PHR transmission has completed.
+        ///
         TX_STAMP, 0, 40,  u64;
     }
-    /// Transmit time stamp raw
-    0x01, 0x00, 4, RO, TX_RAWST(tx_rawst) {
-        /// Transmit time stamp raw
+    ///
+    /// Transmit raw timestamp
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x01, 0x00, 4, RO, TX_RAWST(tx_rawst)] {
+        ///
+        /// Raw timestamp of transmission
+        ///
         VALUE, 0, 32,  u32;
     }
+    ///
     /// Transmitter antenna delay
-    0x01, 0x04, 2, RW, TX_ANTD(tx_antd) {
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x01, 0x04, 2, RW, TX_ANTD(tx_antd)] {
+        ///
         /// Transmitter antenna delay
+        ///
+        /// Accounts for the delay between the internal digital timestamp of the RMARKER and the time the RMARKER is at the antenna.
+        /// The value is automatically added to the raw timestamp ([TX_RAWST](super::tx_rawst::VALUE)) to get the fully adjusted
+        /// timestamp ([TX_STAMP](super::tx_stamp::TX_STAMP)).
+        ///
+        /// The least significant bit is roughly equivalent to 15.65ps (<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mrow><mn>128</mn><mo>(</mo><mn>499.2</mn><mo>&#xd7;</mo><msup><mn>10</mn><mrow><mo>-</mo><mn>6</mn></mrow></msup><mo>)</mo></mrow></mfrac></math>).
+        /// The default antenna delay is `0x4015`, which is approximately 256.74 ns.
+        ///
         VALUE, 0, 16,  u16;
     }
+    ///
     /// Acknowledgement delay time and response time
-    0x01, 0x08, 4, RW, ACK_RESP(ack_resp) {
-        /// Wait-for-Response turn-around Time
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x01, 0x08, 4, RW, ACK_RESP(ack_resp)] {
+        ///
+        /// Wait-for-Response turn-around time
+        ///
+        /// Configures the turn-around time between TX complete and RX enable when one of the wait for response functions
+        /// are being used. The time specified is in units of approximately 1 µs, or 128 system clock cycles.
+        ///
+        /// This may be used to save power by delaying the turn-on of the receiver, to align with the response time of the
+        /// remote system, rather than turning on the receiver immediately after transmission completes.
+        ///
         W4R_TIM, 0, 20,  u32;
-        /// Auto-Acknowledgement turn-around TimeC
+        ///
+        /// Auto-Acknowledgement turn-around time
+        ///
+        /// Configures the turn-around time between the correct receipt of a data frame (or MAC command frame) and the
+        /// automatic transmission of the acknowledgement frame. The time specified is in units of preamble symbols.
+        ///
+        /// To ensure that the receiver is ready for the first preamble symbol, and assuming that the remote transmitter
+        /// has its [W4R_TIM] parameter set to 0, the recommended minimum settings are 2 and 3 for data rates of 850 kb/s
+        /// and 6.8 Mb/s respectively. This is most important at the 6.8 Mb/s data rate, where preamble sequences are
+        /// generally short, and losing even a few preamble symbols could potentially compromise ACK reception.
+        ///
+        /// Where the [W4R_TIM] parameter of the remote transmitter is larger than zero, this setting should be increased
+        /// to ensure that none of the packet is sent before the remote receiver is listening.
+        ///
+        /// Note: in order for this bit to have an effect, automatic acknowledgement must be enabled by setting the
+        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        ///
         ACK_TIM, 24, 8,  u8;
     }
     /// TX Power Control
-    0x01, 0x0C, 4, RW, TX_POWER(tx_power) {
+    [0x01, 0x0C, 4, RW, TX_POWER(tx_power)] {
         /// TX Power Control value
         VALUE, 0, 32,  u32;
     }
+    ///
     /// Channel Control Register
-    0x01, 0x14, 2, RW, CHAN_CTRL(chan_ctrl) {
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x01, 0x14, 2, RW, CHAN_CTRL(chan_ctrl)] {
         /// Selects the receive channel.
         RF_CHAN, 0, 1,  u8;
         /// Enables the non-standard Decawave proprietary SFD sequence.
         SFD_TYPE, 1, 2,  u8;
-        /// This field selects the preamble code used in the transmitter.
+        /// Selects the preamble code used in the transmitter.
         TX_PCODE, 3, 5,  u8;
-        /// This field selects the preamble code used in the receiver.
+        /// Selects the preamble code used in the receiver.
         RX_PCODE, 8, 5,  u8;
     }
     /// Low Energy device address 0 and 1
-    0x01, 0x18, 4, RW, LE_PEND_01(le_pend_01) {
+    [0x01, 0x18, 4, RW, LE_PEND_01(le_pend_01)] {
         /// Low Energy device 16-bit address
         LE_ADDR0, 0, 16,  u16;
         /// Low Energy device 16-bit address
         LE_ADDR1, 16, 16,  u16;
     }
     /// Low Energy device address 2 and 3
-    0x01, 0x1C, 4, RW, LE_PEND_23(le_pend_23) {
+    [0x01, 0x1C, 4, RW, LE_PEND_23(le_pend_23)] {
         /// Low Energy device 16-bit address
         LE_ADDR2, 0, 16,  u16;
         /// Low Energy device 16-bit address
         LE_ADDR3, 16, 16,  u16;
     }
     /// SPI collision status
-    0x01, 0x20, 1, RW, SPI_COLLISION(spi_collision) {
+    [0x01, 0x20, 1, RW, SPI_COLLISION(spi_collision)] {
         /// SPI collision status
         VALUE, 0, 8,  u8;
     }
     /// RX double buffer status
-    0x01, 0x24, 1, RW, RDB_STATUS(rdb_status) {
+    [0x01, 0x24, 1, RW, RDB_STATUS(rdb_status)] {
         /// Receiver FCS Good
         RXFCG0, 0, 1,  u8;
         /// Receiver Data Frame Ready
@@ -561,12 +838,12 @@ impl_registers! {
         CP_ERR1, 7, 1,  u8;
     }
     /// RX double buffer diagnostic configuration
-    0x01, 0x28, 1, RW, RDB_DIAG(rdb_diag) {
+    [0x01, 0x28, 1, RW, RDB_DIAG(rdb_diag)] {
         /// RX double buffer diagnostic mode
         RDB_DMODE, 0, 3,  u8;
     }
     /// AES configuration
-    0x01, 0x30, 2, RW, AES_CFG(aes_cfg) {
+    [0x01, 0x30, 2, RW, AES_CFG(aes_cfg)] {
         /// Mode of operation of AES core
         MODE, 0, 1,  u8;
         /// AES Key Size
@@ -585,32 +862,32 @@ impl_registers! {
         KEY_OTP, 12, 1,  u8;
     }
     /// AES GCM core mode
-    0x01, 0x34, 4, RW, AES_IV0(aes_iv0) {
+    [0x01, 0x34, 4, RW, AES_IV0(aes_iv0)] {
         /// AES GCM core mode
         VALUE, 0, 32,  u32;
     }
     /// AES GCM core mode
-    0x01, 0x38, 4, RW, AES_IV1(aes_iv1) {
+    [0x01, 0x38, 4, RW, AES_IV1(aes_iv1)] {
         /// AES GCM core mode
         VALUE, 0, 32,  u32;
     }
     /// AES GCM core mode
-    0x01, 0x3C, 4, RW, AES_IV2(aes_iv2) {
+    [0x01, 0x3C, 4, RW, AES_IV2(aes_iv2)] {
         /// AES GCM core mode
         VALUE, 0, 32,  u32;
     }
     /// AES GCM core mode
-    0x01, 0x40, 2, RW, AES_IV3(aes_iv3) {
+    [0x01, 0x40, 2, RW, AES_IV3(aes_iv3)] {
         /// AES GCM core mode
         VALUE, 0, 16,  u16;
     }
     /// AES GCM core mode
-    0x01, 0x42, 2, RW, AES_IV4(aes_iv4) {
+    [0x01, 0x42, 2, RW, AES_IV4(aes_iv4)] {
         /// AES GCM core mode
         VALUE, 0, 16,  u16;
     }
     /// DMA configuration register
-    0x01, 0x44, 8, RW, DMA_CFG(dma_cfg) {
+    [0x01, 0x44, 8, RW, DMA_CFG(dma_cfg)] {
         /// Source memory port for DMA transfer
         SRC_PORT, 0, 3,  u8;
         /// Address offset within source memory for DMA transfer
@@ -627,12 +904,12 @@ impl_registers! {
         PYLD_SIZE, 39, 10,  u8;
     }
     /// Start AES operation
-    0x01, 0x4C, 1, RW, AES_START(aes_start) {
+    [0x01, 0x4C, 1, RW, AES_START(aes_start)] {
         /// Start AES operation
         VALUE, 0, 1,  u8;
     }
     /// The AES Status
-    0x01, 0x50, 4, RW, AES_STS(aes_sts) {
+    [0x01, 0x50, 4, RW, AES_STS(aes_sts)] {
         /// AES operation complete. Write 1 to clear
         AES_DONE, 0, 1,  u8;
         /// AES authentication error. Write 1 to clear.
@@ -647,103 +924,103 @@ impl_registers! {
         RAM_FULL, 5, 1,  u8;
     }
     /// The 128-bit KEY for the AES GCM/CCM* core
-    0x01, 0x54, 16, RW, AES_KEY(aes_key) {
+    [0x01, 0x54, 16, RW, AES_KEY(aes_key)] {
         /// value
         VALUE, 0, 128,  u128;
     }
     /// STS configuration
-    0x02, 0x00, 2, RW, STS_CFG(sts_cfg) {
+    [0x02, 0x00, 2, RW, STS_CFG(sts_cfg)] {
         /// STS length
         CPS_LEN, 0, 8,  u8;
     }
     /// STS control
-    0x02, 0x04, 1, RW, STS_CTRL(sts_ctrl) {
+    [0x02, 0x04, 1, RW, STS_CTRL(sts_ctrl)] {
         /// Load STS_IV bit into the AES-128 block for the generation of STS
         LOAD_IV, 0, 1,  u8;
         /// Start from last, when it is set to 1 the STS generation starts from the last count that was used by the AES-128 block for the generation of the previous STS.
         RST_LAST, 1, 1,  u8;
     }
     /// STS status
-    0x02, 0x08, 2, RW, STS_STS(sts_sts) {
+    [0x02, 0x08, 2, RW, STS_STS(sts_sts)] {
         /// STS accumulation quality
         ACC_QUAL, 0, 12,  u16;
     }
     /// STS 128-bit KEY
-    0x02, 0x0C, 16, RW, STS_KEY(sts_key) {
+    [0x02, 0x0C, 16, RW, STS_KEY(sts_key)] {
         /// value
         VALUE, 0, 128,  u128;
     }
     /// STS 128-bit IV
-    0x02, 0x1C, 16, RW, STS_IV(sts_iv) {
+    [0x02, 0x1C, 16, RW, STS_IV(sts_iv)] {
         /// value
         VALUE, 0, 128,  u128;
     }
     /// RX tuning configuration register
-    0x03, 0x18, 2, RW, DGC_CFG(dgc_cfg) {
+    [0x03, 0x18, 2, RW, DGC_CFG(dgc_cfg)] {
         /// RX tuning enable bit
         RX_TUNE_EN, 0, 1,  u8;
         /// RX tuning threshold configuration for 64 MHz PRF
         THR_64, 9, 6,  u8;
     }
     /// DGC_CFG0
-    0x03, 0x1C, 4, RW, DGC_CFG0(dgc_cfg0) {
+    [0x03, 0x1C, 4, RW, DGC_CFG0(dgc_cfg0)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_CFG1
-    0x03, 0x20, 4, RW, DGC_CFG1(dgc_cfg1) {
+    [0x03, 0x20, 4, RW, DGC_CFG1(dgc_cfg1)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_0
-    0x03, 0x38, 4, RW, DGC_LUT_0(dgc_lut_0) {
+    [0x03, 0x38, 4, RW, DGC_LUT_0(dgc_lut_0)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_1
-    0x03, 0x3C, 4, RW, DGC_LUT_1(dgc_lut_1) {
+    [0x03, 0x3C, 4, RW, DGC_LUT_1(dgc_lut_1)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_2
-    0x03, 0x40, 4, RW, DGC_LUT_2(dgc_lut_2) {
+    [0x03, 0x40, 4, RW, DGC_LUT_2(dgc_lut_2)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_3
-    0x03, 0x44, 4, RW, DGC_LUT_3(dgc_lut_3) {
+    [0x03, 0x44, 4, RW, DGC_LUT_3(dgc_lut_3)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_4
-    0x03, 0x48, 4, RW, DGC_LUT_4(dgc_lut_4) {
+    [0x03, 0x48, 4, RW, DGC_LUT_4(dgc_lut_4)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_5
-    0x03, 0x4C, 4, RW, DGC_LUT_5(dgc_lut_5) {
+    [0x03, 0x4C, 4, RW, DGC_LUT_5(dgc_lut_5)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// DGC_LUT_6
-    0x03, 0x50, 4, RW, DGC_LUT_6(dgc_lut_6) {
+    [0x03, 0x50, 4, RW, DGC_LUT_6(dgc_lut_6)] {
         /// Value
         VALUE, 0, 32,  u32;
     }
     /// Reports DGC information
-    0x03, 0x60, 4, RW, DGC_DBG(dgc_dbg) {
+    [0x03, 0x60, 4, RW, DGC_DBG(dgc_dbg)] {
         /// DGC decision index.
         DGC_DECISION, 28, 3,  u8;
     }
     /// External clock synchronisation counter configuration
-    0x04, 0x00, 4, RW, EC_CTRL(ec_ctrl) {
+    [0x04, 0x00, 4, RW, EC_CTRL(ec_ctrl)] {
         /// Wait counter used for external timebase reset
         OSTS_WAIT, 3, 8,  u8;
         /// External timebase reset mode enable bit
         OSTR_MODE, 11, 1,  u8;
     }
     /// RX calibration block configuration
-    0x04, 0x0C, 4, RW, RX_CAL(rx_cal) {
+    [0x04, 0x0C, 4, RW, RX_CAL(rx_cal)] {
         /// RX calibration mode
         CAL_MODE, 0, 2,  u8;
         /// RX calibration enable
@@ -752,22 +1029,22 @@ impl_registers! {
         COMP_DLY, 16, 4,  u8;
     }
     /// RX calibration block result
-    0x04, 0x14, 4, RW, RX_CAL_RESI(rx_cal_resi) {
+    [0x04, 0x14, 4, RW, RX_CAL_RESI(rx_cal_resi)] {
         /// reports the result once the RX calibration is complete
         VALUE, 0, 29,  u32;
     }
     /// RX calibration block result
-    0x04, 0x1C, 4, RW, RX_CAL_RESQ(rx_cal_resq) {
+    [0x04, 0x1C, 4, RW, RX_CAL_RESQ(rx_cal_resq)] {
         /// reports the result once the RX calibration is complete
         VALUE, 0, 29,  u32;
     }
     /// RX calibration block status
-    0x04, 0x20, 1, RW, RX_CAL_STS(rx_cal_sts) {
+    [0x04, 0x20, 1, RW, RX_CAL_STS(rx_cal_sts)] {
         ///  reports the status once the RX calibration is complete
         VALUE, 0, 1,  u8;
     }
     /// GPIO Mode Control Register
-    0x05, 0x00, 4, RW, GPIO_MODE(gpio_mode) {
+    [0x05, 0x00, 4, RW, GPIO_MODE(gpio_mode)] {
         ///  Mode Selection for GPIO0/RXOKLED
         MSGP0, 0, 3,  u8;
         ///  Mode Selection for GPIO1/SFDLED
@@ -788,7 +1065,7 @@ impl_registers! {
         MSGP8, 24, 3,  u8;
     }
     /// GPIO Drive Strength and Pull Control
-    0x05, 0x04, 2, RW, GPIO_PULL_EN(gpio_pull_en) {
+    [0x05, 0x04, 2, RW, GPIO_PULL_EN(gpio_pull_en)] {
         ///  Setting to 0 will lower the drive strength
         MGPEN0, 0, 1,  u8;
         ///  Setting to 0 will lower the drive strength
@@ -809,7 +1086,7 @@ impl_registers! {
         MGPEN8, 8, 1,  u8;
     }
     /// GPIO Direction Control Register
-    0x05, 0x08, 2, RW, GPIO_DIR(gpio_dir) {
+    [0x05, 0x08, 2, RW, GPIO_DIR(gpio_dir)] {
         ///   value of 0 means the pin is an output
         GPD0, 0, 1,  u8;
         ///   value of 0 means the pin is an output
@@ -830,7 +1107,7 @@ impl_registers! {
         GPD8, 8, 1,  u8;
     }
     /// GPIO Data Output Register
-    0x05, 0x0C, 2, RW, GPIO_OUT(gpio_out) {
+    [0x05, 0x0C, 2, RW, GPIO_OUT(gpio_out)] {
         ///   show the current output setting
         GOP0, 0, 1,  u8;
         ///   show the current output setting
@@ -851,7 +1128,7 @@ impl_registers! {
         GOP8, 8, 1,  u8;
     }
     /// GPIO Interrupt Enable
-    0x05, 0x10, 2, RW, GPIO_IRQE(gpio_irqe) {
+    [0x05, 0x10, 2, RW, GPIO_IRQE(gpio_irqe)] {
         ///   selected as interrupt source
         GIRQE0, 0, 1,  u8;
         ///   selected as interrupt source
@@ -872,7 +1149,7 @@ impl_registers! {
         GIRQE8, 8, 1,  u8;
     }
     /// GPIO Interrupt Status
-    0x05, 0x14, 2, RW, GPIO_ISTS(gpio_ists) {
+    [0x05, 0x14, 2, RW, GPIO_ISTS(gpio_ists)] {
         ///   Value 1 means GPIO gave rise to the GPIOIRQ SYS_STATUS event
         GISTS0, 0, 1,  u8;
         ///   Value 1 means GPIO gave rise to the GPIOIRQ SYS_STATUS event
@@ -893,7 +1170,7 @@ impl_registers! {
         GISTS8, 8, 1,  u8;
     }
     /// GPIO Interrupt Sense Selection
-    0x05, 0x18, 2, RW, GPIO_ISEN(gpio_isen) {
+    [0x05, 0x18, 2, RW, GPIO_ISEN(gpio_isen)] {
         ///   GPIO IRQ Sense selection GPIO input
         GISEN0, 0, 1,  u8;
         ///   GPIO IRQ Sense selection GPIO input
@@ -914,7 +1191,7 @@ impl_registers! {
         GISEN8, 8, 1,  u8;
     }
     /// GPIO Interrupt Mode (Level / Edge)
-    0x05, 0x1C, 2, RW, GPIO_IMODE(gpio_imode) {
+    [0x05, 0x1C, 2, RW, GPIO_IMODE(gpio_imode)] {
         ///   GPIO IRQ Mode selection for GPIO input
         GIMOD0, 0, 1,  u8;
         ///   GPIO IRQ Mode selection for GPIO input
@@ -935,7 +1212,7 @@ impl_registers! {
         GIMOD8, 8, 1,  u8;
     }
     /// GPIO Interrupt “Both Edge” Select
-    0x05, 0x20, 2, RW, GPIO_IBES(gpio_ibes) {
+    [0x05, 0x20, 2, RW, GPIO_IBES(gpio_ibes)] {
         ///   GPIO IRQ “Both Edge” selection for GPIO input
         GIBES0, 0, 1,  u8;
         ///   GPIO IRQ “Both Edge” selection for GPIO input
@@ -956,7 +1233,7 @@ impl_registers! {
         GIBES8, 8, 1,  u8;
     }
     /// GPIO Interrupt Latch Clear
-    0x05, 0x24, 4, RW, GPIO_ICLR(gpio_iclr) {
+    [0x05, 0x24, 4, RW, GPIO_ICLR(gpio_iclr)] {
         ///   GPIO IRQ latch clear for GPIO input
         GICLR0, 0, 1,  u8;
         ///   GPIO IRQ latch clear for GPIO input
@@ -977,7 +1254,7 @@ impl_registers! {
         GICLR8, 8, 1,  u8;
     }
     /// GPIO Interrupt De-bounce Enable
-    0x05, 0x28, 4, RW, GPIO_IDBE(gpio_idbe) {
+    [0x05, 0x28, 4, RW, GPIO_IDBE(gpio_idbe)] {
         ///   GPIO IRQ de-bounce enable for GPIO
         GIDBE0, 0, 1,  u8;
         ///   GPIO IRQ de-bounce enable for GPIO
@@ -998,7 +1275,7 @@ impl_registers! {
         GIDBE8, 8, 1,  u8;
     }
     /// GPIO Raw State
-    0x05, 0x2C, 2, RO, GPIO_RAW(gpio_raw) {
+    [0x05, 0x2C, 2, RO, GPIO_RAW(gpio_raw)] {
         ///   GPIO port raw state
         GRAWP0, 0, 1,  u8;
         ///   GPIO port raw state
@@ -1019,54 +1296,54 @@ impl_registers! {
         GRAWP8, 8, 1,  u8;
     }
     /// PAC configuration
-    0x06, 0x00, 2, RW, DTUNE0(dtune0) {
+    [0x06, 0x00, 2, RW, DTUNE0(dtune0)] {
         ///   Preamble Acquisition Chunk size
         PAC, 0, 2,  u8;
         ///   Tuning bit 4 of digital tuning reg0
         DT0B4, 4, 1,  u8;
     }
     /// SFD timeout
-    0x06, 0x02, 2, RW, RX_SFD_TOC(rx_sfd_toc) {
+    [0x06, 0x02, 2, RW, RX_SFD_TOC(rx_sfd_toc)] {
         /// don't set to 0
         VALUE, 0, 16,  u16;
     }
     /// Preamble detection timeout
-    0x06, 0x04, 2, RW, PRE_TOC(pre_toc) {
+    [0x06, 0x04, 2, RW, PRE_TOC(pre_toc)] {
         /// digital receiver configuration
         VALUE, 0, 16,  u16;
     }
     /// Receiver tuning register
-    0x06, 0x0C, 4, RW, DTUNE3(dtune3) {
+    [0x06, 0x0C, 4, RW, DTUNE3(dtune3)] {
         /// value
         VALUE, 0, 32,  u32;
     }
     /// Digital Tuning Reserved register
-    0x06, 0x10, 4, RW, DTUNE4(dtune4) {
+    [0x06, 0x10, 4, RW, DTUNE4(dtune4)] {
         /// value
         VALUE, 24, 8,  u32;
     }
     /// Digital Tuning Reserved register
-    0x06, 0x14, 4, RO, DTUNE5(dtune5) {
+    [0x06, 0x14, 4, RO, DTUNE5(dtune5)] {
         /// value
         VALUE, 0, 32,  u32;
     }
     /// Carrier recovery integrator register
-    0x06, 0x29, 3, RO, DRX_CAR_INT(drx_car_int) {
+    [0x06, 0x29, 3, RO, DRX_CAR_INT(drx_car_int)] {
         /// value
         VALUE, 0, 24,  u32;
     }
     /// RF control enable
-    0x07, 0x00, 4, RW, RF_ENABLE(rf_enable) {
+    [0x07, 0x00, 4, RW, RF_ENABLE(rf_enable)] {
         /// value
         VALUE, 0, 32,  u32;
     }
     /// RF enable mask
-    0x07, 0x04, 4, RW, RF_CTRL_MASK(rf_ctrl_mask) {
+    [0x07, 0x04, 4, RW, RF_CTRL_MASK(rf_ctrl_mask)] {
         /// value
         VALUE, 0, 32,  u32;
     }
     /// RF switch configuration
-    0x07, 0x14, 4, RW, RF_SWITCH(rf_switch) {
+    [0x07, 0x14, 4, RW, RF_SWITCH(rf_switch)] {
         /// When set to 1, the automatic toggling of the antenna switch is disabled when the device is operating in PDoA modes
         ANTSWNOTOGGLE, 0, 1,  u8;
         /// Specifies the starting port for reception when the device is operating in PDoA modes
@@ -1081,68 +1358,68 @@ impl_registers! {
         TRXSWCTRL, 24, 6,  u8;
     }
     /// RF transmitter configuration
-    0x07, 0x1A, 1, RW, RF_TX_CTRL_1(rf_tx_ctrl_1) {
+    [0x07, 0x1A, 1, RW, RF_TX_CTRL_1(rf_tx_ctrl_1)] {
         /// value
         VALUE, 0, 8,  u8;
     }
     /// RF transmitter configuration
-    0x07, 0x1C, 4, RW, RF_TX_CTRL_2(rf_tx_ctrl_2) {
+    [0x07, 0x1C, 4, RW, RF_TX_CTRL_2(rf_tx_ctrl_2)] {
         /// Pulse Generator Delay value
         VALUE, 0, 32,  u32;
     }
     /// Transmitter test configuration
-    0x07, 0x28, 1, RW, TX_TEST(tx_test) {
+    [0x07, 0x28, 1, RW, TX_TEST(tx_test)] {
         /// Transmitter test enable
         TX_ENTEST, 0, 4,  u8;
     }
     /// Transmitter Calibration – SAR temperaturesensor read enable
-    0x07, 0x34, 1, RW, SAR_TEST(rsar_test) {
+    [0x07, 0x34, 1, RW, SAR_TEST(rsar_test)] {
         /// Writing 1 enables the SAR temperature sensor reading
         SAR_RDEN, 2, 1,  u8;
     }
     /// Internal LDO voltage tuning parameter
-    0x07, 0x40, 8, RW, LDO_TUNE(ldo_tune) {
+    [0x07, 0x40, 8, RW, LDO_TUNE(ldo_tune)] {
         ///  used to control the output voltage levels of the on chip LDOs
         VALUE, 0, 61,  u128;
     }
     /// LDO control
-    0x07, 0x48, 4, RW, LDO_CTRL(ldo_ctrl) {
+    [0x07, 0x48, 4, RW, LDO_CTRL(ldo_ctrl)] {
         ///  LDO control
         LOW, 0, 16,  u16;
         ///  LDO control
         HIGH, 16, 16,  u16;
     }
     /// LDO tuning register
-    0x07, 0x51, 1, RW, LDO_RLOAD(ldo_rload) {
+    [0x07, 0x51, 1, RW, LDO_RLOAD(ldo_rload)] {
         ///  LDO tuning register
         VALUE, 0, 8,  u8;
     }
     /// Transmitter Calibration – SAR control
-    0x08, 0x00, 1, RW, SAR_CTRL(sar_ctrl) {
+    [0x08, 0x00, 1, RW, SAR_CTRL(sar_ctrl)] {
         /// Writing 1 sets SAR enable and writing 0 clears the enable.
         SAR_START, 0, 1,  u8;
     }
     /// Transmitter Calibration – SAR  status
-    0x08, 0x04, 1, RW, SAR_STATUS(sar_status) {
+    [0x08, 0x04, 1, RW, SAR_STATUS(sar_status)] {
         /// Set to 1 when the data is ready to be read.
         SAR_DONE, 0, 1,  u8;
     }
     /// Transmitter Calibration –Latest SAR readings
-    0x08, 0x08, 3, RO, SAR_READING(sar_reading) {
+    [0x08, 0x08, 3, RO, SAR_READING(sar_reading)] {
         /// Latest SAR reading for Voltage level.
         SAR_LVBAT, 0, 8,  u8;
         /// Latest SAR reading for Temperature level.
         SAR_LTEMP, 8, 8,  u8;
     }
     /// Transmitter Calibration – SAR readings at last wake-up
-    0x08, 0x0C, 2, RO, SAR_WAKE_RD(sar_wake_rd) {
+    [0x08, 0x0C, 2, RO, SAR_WAKE_RD(sar_wake_rd)] {
         /// SAR reading of Voltage level taken at last wake up event.
         SAR_WVBAT, 0, 8,  u8;
         /// To read the temp, use SAR_READING instead.
         SAR_WTEMP, 8, 8,  u8;
     }
     /// Transmitter Calibration – Pulse Generator control
-    0x08, 0x10, 2, RW, PGC_CTRL(pgc_ctrl) {
+    [0x08, 0x10, 2, RW, PGC_CTRL(pgc_ctrl)] {
         /// Start the pulse generator calibration.
         PG_START, 0, 1,  u8;
         /// Start the pulse generator auto-calibration.
@@ -1151,29 +1428,29 @@ impl_registers! {
         PGC_TMEAS, 2, 4,  u8;
     }
     /// Transmitter Calibration – Pulse Generator status
-    0x08, 0x14, 2, RO, PGC_STATUS(pgc_status) {
+    [0x08, 0x14, 2, RO, PGC_STATUS(pgc_status)] {
         /// Pulse generator count value
         PG_DELAY_CNT, 0, 12,  u16;
         /// Auto-calibration of the PG_DELAY  has completed.
         AUTOCAL_DONE, 12, 1,  u8;
     }
     /// Transmitter Calibration – Pulse Generator test
-    0x08, 0x18, 2, RW, PG_TEST(pg_test) {
+    [0x08, 0x18, 2, RW, PG_TEST(pg_test)] {
         /// Pulse Generator test
         VALUE, 0, 16,  u16;
     }
     /// Transmitter Calibration – Pulse Generator count target value
-    0x08, 0x1C, 2, RO, PG_CAL_TARGET(pg_cal_target) {
+    [0x08, 0x1C, 2, RO, PG_CAL_TARGET(pg_cal_target)] {
         /// Pulse generator target value of PG_COUNT at which point PG auto cal will complete.
         VALUE, 0, 12,  u16;
     }
     /// PLL configuration
-    0x09, 0x00, 2, RW, PLL_CFG(pll_cfg) {
+    [0x09, 0x00, 2, RW, PLL_CFG(pll_cfg)] {
         /// PLL configuration
         VALUE, 0, 16,  u16;
     }
     /// PLL coarse code – starting code for calibration procedure
-    0x09, 0x04, 4, RW, PLL_CC(pll_cc) {
+    [0x09, 0x04, 4, RW, PLL_CC(pll_cc)] {
         /// PLL calibration coarse code for channel 9.
         CH9_CODE, 0, 8,  u8;
         /// PLL calibration coarse code for channel 5.
@@ -1182,7 +1459,7 @@ impl_registers! {
         VALUE, 0, 32,  u32;
     }
     /// PLL calibration configuration
-    0x09, 0x08, 2, RW, PLL_CAL(pll_cal) {
+    [0x09, 0x08, 2, RW, PLL_CAL(pll_cal)] {
         /// Use the coarse code value as set in PLL_CC register as starting point for PLL calibration.
         USE_OLD, 1, 1,  u8;
         /// PLL calibration configuration value.
@@ -1191,12 +1468,12 @@ impl_registers! {
         CAL_EN, 8, 1,  u8;
     }
     /// Frequency synthesiser – Crystal trim
-    0x09, 0x14, 1, RW, XTAL(xtal) {
+    [0x09, 0x14, 1, RW, XTAL(xtal)] {
         /// Crystal Trim.
         VALUE, 0, 8,  u8;
     }
     /// AON wake up configuration register
-    0x0A, 0x00, 3, RW, AON_DIG_CFG(aon_dig_cfg) {
+    [0x0A, 0x00, 3, RW, AON_DIG_CFG(aon_dig_cfg)] {
         /// On Wake-up download the AON array.
         ONW_AON_DLD, 0, 1,  u8;
         /// On Wake-up Run the (temperature and voltage) Analog-to-Digital Convertors.
@@ -1209,7 +1486,7 @@ impl_registers! {
         ONW_PGFCAL, 11, 1,  u8;
     }
     /// AON control register
-    0x0A, 0x04, 1, RW, AON_CTRL(aon_ctrl) {
+    [0x0A, 0x04, 1, RW, AON_CTRL(aon_ctrl)] {
         /// Copy the user configurations from the AON memory to the host interface register set.
         RESTORE, 0, 1,  u8;
         /// Copy the user configurations from the host interface register  set  into  the  AON  memory.
@@ -1226,22 +1503,22 @@ impl_registers! {
         DCA_ENAB, 7, 1,  u8;
     }
     /// AON direct access read data result
-    0x0A, 0x08, 1, RW, AON_RDATA(aon_rdata) {
+    [0x0A, 0x08, 1, RW, AON_RDATA(aon_rdata)] {
         /// AON direct access read data result
         VALUE, 0, 8,  u8;
     }
     /// AON direct access address
-    0x0A, 0x0C, 2, RW, AON_ADDR(aon_addr) {
+    [0x0A, 0x0C, 2, RW, AON_ADDR(aon_addr)] {
         /// AON direct access address
         VALUE, 0, 16,  u16;
     }
     /// AON direct access write data
-    0x0A, 0x10, 1, RW, AON_WDATA(aon_wdata) {
+    [0x0A, 0x10, 1, RW, AON_WDATA(aon_wdata)] {
         /// AON direct access write data
         VALUE, 0, 8,  u8;
     }
     /// AON configuration register
-    0x0A, 0x14, 1, RW, AON_CFG(aon_cfg) {
+    [0x0A, 0x14, 1, RW, AON_CFG(aon_cfg)] {
         /// Sleep enable configuration bit.
         SLEEP_EN, 0, 1,  u8;
         /// Wake when sleep counter elapses.
@@ -1256,17 +1533,17 @@ impl_registers! {
         PRES_SLEEP, 5, 1,  u8;
     }
     /// OTP data to program to a particular address
-    0x0B, 0x00, 4, RW, OTP_WDATA(otp_wdata) {
+    [0x0B, 0x00, 4, RW, OTP_WDATA(otp_wdata)] {
         /// OTP data to program to a particular address
         VALUE, 0, 32,  u32;
     }
     /// OTP address to which to program the data
-    0x0B, 0x04, 4, RW, OTP_ADDR(otp_addr) {
+    [0x0B, 0x04, 4, RW, OTP_ADDR(otp_addr)] {
         /// Address within OTP memory that will be accessed read or written.
         VALUE, 0, 11,  u16;
     }
     /// OTP configuration register
-    0x0B, 0x08, 2, RW, OTP_CFG(otp_cfg) {
+    [0x0B, 0x08, 2, RW, OTP_CFG(otp_cfg)] {
         /// Enable manual control over OTP interface.
         OTP_MAN, 0, 1,  u8;
         /// OTP read enable.
@@ -1289,24 +1566,24 @@ impl_registers! {
         DGC_SEL, 13, 1,  u8;
     }
     /// OTP memory programming status register
-    0x0B, 0x0C, 1, RW, OTP_STAT(otp_stat) {
+    [0x0B, 0x0C, 1, RW, OTP_STAT(otp_stat)] {
         /// OTP Programming Done
         OTP_PROG_DONE, 0, 1,  u8;
         /// OTP Programming Voltage OK.
         OTP_VPP_OK, 1, 1,  u8;
     }
     /// OTP data read from given address
-    0x0B, 0x10, 4, RO, OTP_RDATA(otp_rdata) {
+    [0x0B, 0x10, 4, RO, OTP_RDATA(otp_rdata)] {
         /// OTP data read from given address
         VALUE, 0, 32,  u32;
     }
     /// OTP Special Register (SR) read data
-    0x0B, 0x14, 4, RW, OTP_SRDATA(otp_srdata) {
+    [0x0B, 0x14, 4, RW, OTP_SRDATA(otp_srdata)] {
         /// OTP Special Register (SR) read data
         VALUE, 0, 32,  u32;
     }
     /// Preamble sequence receive time stamp and status
-    0x0C, 0x00, 8, RO, IP_TS(ip_ts) {
+    [0x0C, 0x00, 8, RO, IP_TS(ip_ts)] {
         /// Preamble sequence Time of Arrival estimate.
         IP_TOA, 0, 40,  u64;
         /// Phase of arrival as computed from the preamble CIR.
@@ -1315,7 +1592,7 @@ impl_registers! {
         IP_TOAST, 56, 8,  u8;
     }
     /// STS receive time stamp and status
-    0x0C, 0x08, 8, RO, STS_TS(sts_ts) {
+    [0x0C, 0x08, 8, RO, STS_TS(sts_ts)] {
         /// STS Time of Arrival estimate.
         STS_TOA, 0, 40,  u64;
         /// Phase of arrival as computed from the STS CIR.
@@ -1324,7 +1601,7 @@ impl_registers! {
         STS_TOAST, 55, 9,  u16;
     }
     /// 2nd STS receive time stamp and status
-    0x0C, 0x10, 8, RO, STS1_TS(sts1_ts) {
+    [0x0C, 0x10, 8, RO, STS1_TS(sts1_ts)] {
         /// STS second Time of Arrival estimate.
         STS1_TOA, 0, 40,  u64;
         /// Phase of arrival as computed from the STS based CIR estimate.
@@ -1333,166 +1610,166 @@ impl_registers! {
         STS1_TOAST, 55, 9,  u16;
     }
     /// The TDoA between the two CIRs
-    0x0C, 0x18, 6, RO, TDOA(tdoa) {
+    [0x0C, 0x18, 6, RO, TDOA(tdoa)] {
         /// The TDoA between the two CIRs
         VALUE, 0, 48,  u64;
     }
     /// The PDoA between the two CIRs
-    0x0C, 0x1E, 2, RO, PDOA(pdoa) {
+    [0x0C, 0x1E, 2, RO, PDOA(pdoa)] {
         /// Phase difference result.
         VALUE, 0, 14,  u16;
         /// First path threshold test mode.
         FP_TH_MD, 14, 1,  u8;
     }
     /// CIA Diagnostic 0
-    0x0C, 0x20, 4, RO, CIA_DIAG_0(cia_diag_0) {
+    [0x0C, 0x20, 4, RO, CIA_DIAG_0(cia_diag_0)] {
         /// Clock offset estimate.
         COE_PPM, 0, 13,  u16;
     }
     /// Reserved diagnostic data
-    0x0C, 0x24, 4, RO, CIA_DIAG_1(cia_diag_1) {
+    [0x0C, 0x24, 4, RO, CIA_DIAG_1(cia_diag_1)] {
     }
     /// Preamble Diagnostic 0 – peak
-    0x0C, 0x28, 4, RO, IP_DIAG_0(ip_diag_0) {
+    [0x0C, 0x28, 4, RO, IP_DIAG_0(ip_diag_0)] {
         /// Amplitude of the sample accumulated using the preamble sequence.
         IP_PEAKA, 0, 21,  u32;
         /// Index of the sample accumulated using the preamble sequence.
         IP_PEAKI, 21, 10,  u16;
     }
     /// Preamble Diagnostic 1 – power indication
-    0x0C, 0x2C, 4, RO, IP_DIAG_1(ip_diag_1) {
+    [0x0C, 0x2C, 4, RO, IP_DIAG_1(ip_diag_1)] {
         /// Channel area accumulated using the preamble sequence.
         IP_CAREA, 0, 17,  u32;
     }
     /// Preamble Diagnostic 2 – magnitude @ FP + 1
-    0x0C, 0x30, 4, RO, IP_DIAG_2(ip_diag_2) {
+    [0x0C, 0x30, 4, RO, IP_DIAG_2(ip_diag_2)] {
         /// Magnitude of the sample at the first index immediately after the estimated first path position accumulated using the preamble sequence.
         IP_FP1M, 0, 22,  u32;
     }
     /// Preamble Diagnostic 3 – magnitude @ FP + 2
-    0x0C, 0x34, 4, RO, IP_DIAG_3(ip_diag_3) {
+    [0x0C, 0x34, 4, RO, IP_DIAG_3(ip_diag_3)] {
         /// Magnitude of the sample at the second index immediately after the estimated first path position accumulated using the preamble sequence.
         IP_FP2M, 0, 22,  u32;
     }
     /// Preamble Diagnostic 4 – magnitude @ FP + 3
-    0x0C, 0x38, 4, RO, IP_DIAG_4(ip_diag_4) {
+    [0x0C, 0x38, 4, RO, IP_DIAG_4(ip_diag_4)] {
         /// Magnitude of the sample at the third index immediately after the estimated first path position accumulated using the preamble sequence.
         IP_FP3M, 0, 22,  u32;
     }
     /// Reserved diagnostic data
-    0x0C, 0x3C, 12, RO, IP_DIAG_RES1(ip_diag_res1) {
+    [0x0C, 0x3C, 12, RO, IP_DIAG_RES1(ip_diag_res1)] {
     }
     /// Preamble Diagnostic 8 – first path
-    0x0C, 0x48, 4, RO, IP_DIAG_8(ip_diag_8) {
+    [0x0C, 0x48, 4, RO, IP_DIAG_8(ip_diag_8)] {
         /// Estimated first path location accumulated using the preamble sequence.
         IP_FP, 0, 16,  u16;
     }
     /// Reserved diagnostic data
-    0x0C, 0x4C, 12, RO, IP_DIAG_RES2(ip_diag_res2) {
+    [0x0C, 0x4C, 12, RO, IP_DIAG_RES2(ip_diag_res2)] {
     }
     /// Preamble Diagnostic 12 – symbols accumulated
-    0x0C, 0x58, 4, RO, IP_DIAG_12(ip_diag_12) {
+    [0x0C, 0x58, 4, RO, IP_DIAG_12(ip_diag_12)] {
         /// Number of preamble sequence symbols that were accumulated to form the preamble CIR.
         IP_NACC, 0, 12,  u16;
     }
     /// STS 0 Diagnostic 0 – STS CIA peak amplitude
-    0x0C, 0x5C, 4, RO, STS_DIAG_0(sts_diag_0) {
+    [0x0C, 0x5C, 4, RO, STS_DIAG_0(sts_diag_0)] {
         /// Amplitude of the sample accumulated using the STS
         CP0_PEAKA, 0, 21,  u32;
         /// Index of the sample accumulated using the STS
         CP0_PEAKI, 21, 9,  u16;
     }
     /// STS 0 Diagnostic 1 – STS power indication
-    0x0C, 0x60, 4, RO, STS_DIAG_1(sts_diag_1) {
+    [0x0C, 0x60, 4, RO, STS_DIAG_1(sts_diag_1)] {
         /// Channel area accumulated using the the STS
         CP0_CAREA, 0, 16,  u16;
     }
     /// STS 0 Diagnostic 2 – STS magnitude @ FP + 1
-    0x0C, 0x64, 4, RO, STS_DIAG_2(sts_diag_2) {
+    [0x0C, 0x64, 4, RO, STS_DIAG_2(sts_diag_2)] {
         /// Magnitude of the sample at the first index immediately after the estimated first path position accumulated using the STS
         CP0_FP1M, 0, 22,  u32;
     }
     /// STS 0 Diagnostic 3 – STS magnitude @ FP + 2
-    0x0C, 0x68, 4, RO, STS_DIAG_3(sts_diag_3) {
+    [0x0C, 0x68, 4, RO, STS_DIAG_3(sts_diag_3)] {
         /// Magnitude of the sample at the second index immediately after the estimated first path position accumulated using the STS
         CP0_FP2M, 0, 22,  u32;
     }
     /// STS 0 Diagnostic 4 – STS magnitude @ FP + 3
-    0x0D, 0x00, 4, RO, STS_DIAG_4(sts_diag_4) {
+    [0x0D, 0x00, 4, RO, STS_DIAG_4(sts_diag_4)] {
         /// Magnitude of the sample at the third index immediately after the estimated first path position accumulated using the STS
         CP0_FP3M, 0, 22,  u32;
     }
     /// Reserved diagnostic data
-    0x0D, 0x04, 12, RO, STS0_DIAG_RES1(sts0_diag_res1) {
+    [0x0D, 0x04, 12, RO, STS0_DIAG_RES1(sts0_diag_res1)] {
     }
     /// STS 0 Diagnostic 8 – STS first path
-    0x0D, 0x10, 4, RO, STS_DIAG_8(sts_diag_8) {
+    [0x0D, 0x10, 4, RO, STS_DIAG_8(sts_diag_8)] {
         /// Estimated first path location accumulated using the STS
         CP0_FP, 0, 15,  u16;
     }
     /// Reserved diagnostic data
-    0x0D, 0x14, 12, RO, STS0_DIAG_RES2(sts0_diag_res2) {
+    [0x0D, 0x14, 12, RO, STS0_DIAG_RES2(sts0_diag_res2)] {
     }
     /// STS 0 diagnostic 12 – accumulated STS length
-    0x0D, 0x20, 4, RO, STS_DIAG_12(sts_diag_12) {
+    [0x0D, 0x20, 4, RO, STS_DIAG_12(sts_diag_12)] {
         /// Number of preamble sequence symbols that were accumulated to form the preamble CIR.
         CP0_NACC, 0, 11,  u16;
     }
     /// Reserved diagnostic data
-    0x0D, 0x24, 20, RO, STS0_DIAG_RES3(sts0_diag_res3) {
+    [0x0D, 0x24, 20, RO, STS0_DIAG_RES3(sts0_diag_res3)] {
     }
     /// STS 1 Diagnostic 0 – STS CIA peak amplitude
-    0x0D, 0x38, 4, RO, STS1_DIAG_0(sts1_diag_0) {
+    [0x0D, 0x38, 4, RO, STS1_DIAG_0(sts1_diag_0)] {
         /// Amplitude of the sample accumulated using the STS
         CP1_PEAKA, 0, 21,  u32;
         /// Index of the sample accumulated using the STS
         CP1_PEAKI, 21, 9,  u16;
     }
     /// STS 1 Diagnostic 1 – STS power indication
-    0x0D, 0x3C, 4, RO, STS1_DIAG_1(sts1_diag_1) {
+    [0x0D, 0x3C, 4, RO, STS1_DIAG_1(sts1_diag_1)] {
         /// Channel area accumulated using the the STS
         CP1_CAREA, 0, 16,  u16;
     }
     /// STS 1 Diagnostic 2 – STS magnitude @ FP + 1
-    0x0D, 0x40, 4, RO, STS1_DIAG_2(sts1_diag_2) {
+    [0x0D, 0x40, 4, RO, STS1_DIAG_2(sts1_diag_2)] {
         /// Magnitude of the sample at the first index immediately after the estimated first path position accumulated using the STS
         CP1_FP1M, 0, 22,  u32;
     }
     /// STS 1 Diagnostic 3 – STS magnitude @ FP + 2
-    0x0D, 0x44, 4, RO, STS1_DIAG_3(sts1_diag_3) {
+    [0x0D, 0x44, 4, RO, STS1_DIAG_3(sts1_diag_3)] {
         /// Magnitude of the sample at the second index immediately after the estimated first path position accumulated using the STS
         CP1_FP2M, 0, 22,  u32;
     }
     /// STS 1 Diagnostic 4 – STS magnitude @ FP + 3
-    0x0D, 0x48, 4, RO, STS1_DIAG_4(sts1_diag_4) {
+    [0x0D, 0x48, 4, RO, STS1_DIAG_4(sts1_diag_4)] {
         /// Magnitude of the sample at the third index immediately after the estimated first path position accumulated using the STS
         CP1_FP3M, 0, 22,  u32;
     }
     /// Reserved diagnostic data
-    0x0D, 0x4C, 12, RO, STS1_DIAG_RES1(sts1_diag_res1) {
+    [0x0D, 0x4C, 12, RO, STS1_DIAG_RES1(sts1_diag_res1)] {
     }
     /// STS 1 Diagnostic 8 – STS first path
-    0x0D, 0x58, 4, RO, STS1_DIAG_8(sts1_diag_8) {
+    [0x0D, 0x58, 4, RO, STS1_DIAG_8(sts1_diag_8)] {
         /// Estimated first path location accumulated using the STS
         CP1_FP, 0, 15,  u16;
     }
     /// Reserved diagnostic data
-    0x0D, 0x5C, 12, RO, STS1_DIAG_RES2(sts1_diag_res2) {
+    [0x0D, 0x5C, 12, RO, STS1_DIAG_RES2(sts1_diag_res2)] {
     }
     /// STS 1 Diagnostic 12 – STS accumulated STS length
-    0x0D, 0x68, 4, RO, STS1_DIAG_12(sts1_diag_12) {
+    [0x0D, 0x68, 4, RO, STS1_DIAG_12(sts1_diag_12)] {
         /// Number of preamble sequence symbols that were accumulated to form the preamble CIR.
         CP1_NACC, 0, 11,  u16;
     }
     /// CIA general configuration
-    0x0E, 0x00, 4, RW, CIA_CONF(cia_conf) {
+    [0x0E, 0x00, 4, RW, CIA_CONF(cia_conf)] {
         /// Configures the receive antenna delay.
         RXANTD, 0, 16,  u16;
         ///  Minimum Diagnostics.
         MINDIAG, 20, 1,  u8;
     }
     /// First path temp adjustment and thresholds
-    0x0E, 0x04, 4, RW, FP_CONF(fp_conf) {
+    [0x0E, 0x04, 4, RW, FP_CONF(fp_conf)] {
         /// The threshold to use when performing the FP_AGREE test.
         FP_AGREED_TH, 8, 3,  u8;
         /// Temperature at which the device was calibrated.
@@ -1501,7 +1778,7 @@ impl_registers! {
         TC_RXDLY_EN, 20, 1,  u8;
     }
     /// Preamble Config – CIA preamble configuration
-    0x0E, 0x0C, 4, RW, IP_CONF_LO(ip_conf_lo) {
+    [0x0E, 0x0C, 4, RW, IP_CONF_LO(ip_conf_lo)] {
         /// Preamble Noise Threshold Multiplier.
         IP_NTM, 0, 5,   u8;
         /// Preamble Peak Multiplier.
@@ -1512,12 +1789,12 @@ impl_registers! {
         IP_RTM, 16, 5,  u8;
     }
     /// Preamble Config – CIA preamble configuration
-    0x0E, 0x0E, 4, RW, IP_CONF_HI(ip_conf_hi) {
+    [0x0E, 0x0E, 4, RW, IP_CONF_HI(ip_conf_hi)] {
         /// Undocumented IP_CONF_HI register
         VALUE, 0, 32,  u32;
     }
     /// STS Config 0 – CIA STS configuration
-    0x0E, 0x12, 4, RW, STS_CONF_0(sts_conf_0) {
+    [0x0E, 0x12, 4, RW, STS_CONF_0(sts_conf_0)] {
         /// STS Noise Threshold Multiplier.
         STS_NTM, 0, 5,  u8;
         /// STS Peak Multiplier.
@@ -1528,7 +1805,7 @@ impl_registers! {
         STS_RTM, 16, 7,  u8;
     }
     /// STS Config 1 – CIA STS configuration
-    0x0E, 0x16, 4, RW, STS_CONF_1(sts_conf_1) {
+    [0x0E, 0x16, 4, RW, STS_CONF_1(sts_conf_1)] {
         /// Tuning value
         RES_B0, 0, 8,  u8;
         /// Checks to see if the two ToA estimates are within allowed tolerances.
@@ -1541,84 +1818,84 @@ impl_registers! {
         STS_PGR_EN, 31, 1,  u8;
     }
     /// User adjustment to the PDoA
-    0x0E, 0x1A, 2, RW, CIA_ADJUST(cia_adjust) {
+    [0x0E, 0x1A, 2, RW, CIA_ADJUST(cia_adjust)] {
         /// Adjustment value to account for non-balanced antenna circuits.
         VALUE, 0, 14,  u8;
     }
     /// Event counter control
-    0x0F, 0x00, 1, RW, EVC_CTRL(evc_ctrl) {
+    [0x0F, 0x00, 1, RW, EVC_CTRL(evc_ctrl)] {
         /// Event Counters Enable.
         EVC_EN, 0, 1,  u8;
         /// Event Counters Clear.
         EVC_CLR, 1, 1,  u8;
     }
     /// PHR error counter
-    0x0F, 0x04, 2, RO, EVC_PHE(evc_phe) {
+    [0x0F, 0x04, 2, RO, EVC_PHE(evc_phe)] {
         /// PHR Error Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// RSD error counter
-    0x0F, 0x06, 2, RO, EVC_RSE(evc_rse) {
+    [0x0F, 0x06, 2, RO, EVC_RSE(evc_rse)] {
         /// Reed Solomon decoder (Sync Loss) Error Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// Frame check sequence good counter
-    0x0F, 0x08, 2, RO, EVC_FCG(evc_fcg) {
+    [0x0F, 0x08, 2, RO, EVC_FCG(evc_fcg)] {
         /// Frame Check Sequence Good Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// Frame Check Sequence error counter
-    0x0F, 0x0A, 2, RO, EVC_FCE(evc_fce) {
+    [0x0F, 0x0A, 2, RO, EVC_FCE(evc_fce)] {
         /// Frame Check Sequence Error Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// Frame filter rejection counter
-    0x0F, 0x0C, 1, RO, EVC_FFR(evc_ffr) {
+    [0x0F, 0x0C, 1, RO, EVC_FFR(evc_ffr)] {
         /// Frame Filter Rejection Event Counter.
         VALUE, 0, 8,  u8;
     }
     /// RX overrun error counter
-    0x0F, 0x0E, 1, RO, EVC_OVR (evc_ovr) {
+    [0x0F, 0x0E, 1, RO, EVC_OVR (evc_ovr)] {
         /// RX Overrun Error Event Counter.
         VALUE, 0, 8,  u8;
     }
     /// SFD timeout counter
-    0x0F, 0x10, 2, RO, EVC_STO(evc_sto) {
+    [0x0F, 0x10, 2, RO, EVC_STO(evc_sto)] {
         /// SFD timeout errors Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// Preamble timeout counter
-    0x0F, 0x12, 2, RO, EVC_PTO(evc_pto) {
+    [0x0F, 0x12, 2, RO, EVC_PTO(evc_pto)] {
         /// Preamble  Detection  Timeout  Event  Counter.
         VALUE, 0, 12,  u16;
     }
     /// RX frame wait timeout counter
-    0x0F, 0x14, 1, RO, EVC_FWTO(evc_fwto) {
+    [0x0F, 0x14, 1, RO, EVC_FWTO(evc_fwto)] {
         /// RX  Frame  Wait  Timeout  Event  Counter.
         VALUE, 0, 8,  u8;
     }
     /// TX frame sent counter
-    0x0F, 0x16, 2, RO, EVC_TXFS(evc_txfs) {
+    [0x0F, 0x16, 2, RO, EVC_TXFS(evc_txfs)] {
         /// TX Frame Sent Event Counter.
         VALUE, 0, 12,  u16;
     }
     /// Half period warning counter
-    0x0F, 0x18, 1, RO, EVC_HPW(evc_hpw) {
+    [0x0F, 0x18, 1, RO, EVC_HPW(evc_hpw)] {
         /// Half Period Warning Event Counter.
         VALUE, 0, 8,  u8;
     }
     /// SPI write CRC error counter
-    0x0F, 0x1A, 1, RO, EVC_SWCE(evc_swce) {
+    [0x0F, 0x1A, 1, RO, EVC_SWCE(evc_swce)] {
         /// SPI write CRC error counter.
         VALUE, 0, 8,  u8;
     }
     /// Digital diagnostics reserved area 1
-    0x0F, 0x1C, 8, RO, EVC_RES1(evc_res1) {
+    [0x0F, 0x1C, 8, RO, EVC_RES1(evc_res1)] {
         /// Digital diagnostics reserved area 1
         VALUE, 0, 64,  u64;
     }
     /// Test mode control register
-    0x0F, 0x24, 4, RW, DIAG_TMC(diag_tmc) {
+    [0x0F, 0x24, 4, RW, DIAG_TMC(diag_tmc)] {
         /// Transmit Power Spectrum Test Mode.
         TX_PSTM, 4, 1,  u8;
         /// Host interrupt polarity.
@@ -1629,22 +1906,22 @@ impl_registers! {
         CIA_RUN, 26, 1,  u8;
     }
     /// STS quality error counter
-    0x0F, 0x28, 1, RO, EVC_CPQE(evc_cpqe) {
+    [0x0F, 0x28, 1, RO, EVC_CPQE(evc_cpqe)] {
         /// STS quality error counter
         VALUE, 0, 8,  u8;
     }
     /// Low voltage warning error counter
-    0x0F, 0x2A, 1, RO, EVC_VWARN(evc_vwarn) {
+    [0x0F, 0x2A, 1, RO, EVC_VWARN(evc_vwarn)] {
         /// Low voltage warning error counter
         VALUE, 0, 8,  u8;
     }
     /// SPI mode
-    0x0F, 0x2C, 1, RO, SPI_MODE(spi_mode) {
+    [0x0F, 0x2C, 1, RO, SPI_MODE(spi_mode)] {
         /// SPI mode
         VALUE, 0, 2,  u8;
     }
     /// System states *
-    0x0F, 0x30, 4, RO, SYS_STATE(sys_state) {
+    [0x0F, 0x30, 4, RO, SYS_STATE(sys_state)] {
         /// Current Transmit State Machine value
         TX_STATE, 0, 4,  u8;
         /// Current Receive State Machine value
@@ -1653,22 +1930,22 @@ impl_registers! {
         PMSC_STATE, 16, 8,  u8;
     }
     /// Fast command status
-    0x0F, 0x3C, 1, RO, FCMD_STAT(fcmd_stat) {
+    [0x0F, 0x3C, 1, RO, FCMD_STAT(fcmd_stat)] {
         /// Fast command status.
         VALUE, 0, 5,  u8;
     }
     /// Current value of  the low 32-bits of the STS IV
-    0x0F, 0x48, 4, RO, CTR_DBG(ctr_dbg) {
+    [0x0F, 0x48, 4, RO, CTR_DBG(ctr_dbg)] {
         /// Current value of  the low 32-bits of the STS IV
         VALUE, 0, 32,  u32;
     }
     /// SPI CRC LFSR initialisation code
-    0x0F, 0x4C, 1, RO, SPICRCINIT(spicrcinit) {
+    [0x0F, 0x4C, 1, RO, SPICRCINIT(spicrcinit)] {
         /// SPI CRC LFSR initialisation code for the SPI CRC function.
         VALUE, 0, 8,  u8;
     }
     /// Soft reset of the device blocks
-    0x11, 0x00, 2, RW, SOFT_RST(soft_rst) {
+    [0x11, 0x00, 2, RW, SOFT_RST(soft_rst)] {
         /// Soft ARM reset
         ARM_RST, 0, 1,  u8;
         /// Soft PRGN reset
@@ -1689,7 +1966,7 @@ impl_registers! {
         GPIO_RST, 8, 1,  u8;
     }
     /// PMSC clock control register
-    0x11, 0x04, 4, RW, CLK_CTRL(clk_ctrl) {
+    [0x11, 0x04, 4, RW, CLK_CTRL(clk_ctrl)] {
         /// System Clock Selection field.
         SYS_CLK, 0, 2,  u8;
         /// Receiver Clock Selection
@@ -1714,7 +1991,7 @@ impl_registers! {
         LP_CLK_EN, 23, 1,  u8;
     }
     /// PMSC sequencing control register
-    0x11, 0x08, 4, RW, SEQ_CTRL(seq_ctrl) {
+    [0x11, 0x08, 4, RW, SEQ_CTRL(seq_ctrl)] {
         /// Automatic  IDLE_RC  to  IDLE_PLL.
         AINIT2IDLE, 8, 1,  u8;
         /// After TX automatically Sleep.
@@ -1731,12 +2008,12 @@ impl_registers! {
         LP_CLK_DIV, 26, 6,  u8;
     }
     /// PMSC fine grain TX sequencing control
-    0x11, 0x12, 4, RW, TXFSEQ(txfseq) {
+    [0x11, 0x12, 4, RW, TXFSEQ(txfseq)] {
         /// PMSC fine grain TX sequencing control
         VALUE, 0, 32,  u32;
     }
     /// PMSC fine grain TX sequencing control
-    0x11, 0x16, 4, RW, LED_CTRL(led_ctrl) {
+    [0x11, 0x16, 4, RW, LED_CTRL(led_ctrl)] {
         /// Blink time count value.
         BLINK_TIM, 0, 8,  u8;
         /// Blink Enable.
@@ -1745,25 +2022,34 @@ impl_registers! {
         FORCE_TRIG, 16, 4,  u8;
     }
     /// Receiver SNIFF mode configuration
-    0x11, 0x1A, 4, RW, RX_SNIFF(rx_sniff) {
+    [0x11, 0x1A, 4, RW, RX_SNIFF(rx_sniff)] {
         /// SNIFF Mode ON time.
         SNIFF_ON, 0, 4,  u8;
         /// SNIFF Mode OFF time specified in μs.
         SNIFF_OFF, 8, 8,  u8;
     }
     /// Analog blocks’ calibration values
-    0x11, 0x1F, 2, RW, BIAS_CTRL(bias_ctrl) {
+    [0x11, 0x1F, 2, RW, BIAS_CTRL(bias_ctrl)] {
         /// Analog blocks’ calibration values
         VALUE, 0, 14,  u16;
     }
+    ///
+    /// Transmit Data Buffer
+    ///
+    /// <div class="warning">
+    /// This register mapping and its contents have been hand verified to be correct by a real human.
+    /// </div>
+    ///
+    [0x14, 0x00, 1024, WO, TX_BUFFER(tx_buffer)] {
+    }
     /// Read access to accumulator data memory
-    0x15, 0x00, 12288, RO, ACC_MEM(acc_mem) {
+    [0x15, 0x00, 12288, RO, ACC_MEM(acc_mem)] {
     }
     /// Scratch RAM memory buffer
-    0x16, 0x00, 127, RW, SCRATCH_RAM(scratch_ram) {
+    [0x16, 0x00, 127, RW, SCRATCH_RAM(scratch_ram)] {
     }
     /// storage for up to 8 x 128 bit AES KEYs
-    0x17, 0x00, 128, RW, AES_KEY_RAM(aes_key_ram) {
+    [0x17, 0x00, 128, RW, AES_KEY_RAM(aes_key_ram)] {
         /// 1st AES key
         AES_KEY1, 0, 128,  u128;
         /// 2nd AES key
@@ -1782,26 +2068,26 @@ impl_registers! {
         AES_KEY8, 896, 128,  u128;
     }
     /// Double buffer diagnostic register set
-    0x18, 0x00, 464, RO, DB_DIAG(db_diag) {
+    [0x18, 0x00, 464, RO, DB_DIAG(db_diag)] {
     }
     /// Double buffer diagnostic register set 1
-    0x18, 0x00, 232, RO, DB_DIAG_SET1(db_diag_set1) {
+    [0x18, 0x00, 232, RO, DB_DIAG_SET1(db_diag_set1)] {
     }
     /// Double buffer diagnostic register set 2
-    0x18, 0xE8, 232, RO, DB_DIAG_SET2(db_diag_set2) {
+    [0x18, 0xE8, 232, RO, DB_DIAG_SET2(db_diag_set2)] {
     }
     /// Indirect pointer A
-    0x1D, 0x00, 1, RW, INDIRECT_PTR_A(indirect_ptr_a) {
+    [0x1D, 0x00, 1, RW, INDIRECT_PTR_A(indirect_ptr_a)] {
         /// Indirect pointer A
         VALUE, 0, 8,  u8;
     }
     /// Indirect pointer B
-    0x1E, 0x00, 1, RW, INDIRECT_PTR_B(indirect_ptr_b) {
+    [0x1E, 0x00, 1, RW, INDIRECT_PTR_B(indirect_ptr_b)] {
         /// Indirect pointer B
         VALUE, 0, 8,  u8;
     }
     /// Fast System Event Status Register
-    0x1F, 0x00, 1, RO, FINT_STAT(fint_stat) {
+    [0x1F, 0x00, 1, RO, FINT_STAT(fint_stat)] {
         /// TXFRB or TXPRS or TXPHS or TXFRS.
         TXOK, 0, 1,   u8;
         /// AAT or CCA_FAIL.
@@ -1820,23 +2106,29 @@ impl_registers! {
         SYS_PANIC, 7, 1,   u8;
     }
     /// Base address of the register to be accessed through indirect pointer A
-    0x1F, 0x04, 1, RW, PTR_ADDR_A(ptr_addr_a) {
+    [0x1F, 0x04, 1, RW, PTR_ADDR_A(ptr_addr_a)] {
         /// Base address of the register to be accessed through indirect pointer A
         PTRA_BASE, 0, 5,   u8;
     }
     /// Offset address of the register to be accessed through indirect pointer A
-    0x1F, 0x08, 2, RW, PTR_OFFSET_A(ptr_offset_a) {
+    [0x1F, 0x08, 2, RW, PTR_OFFSET_A(ptr_offset_a)] {
         /// Offset address of the register to be accessed through indirect pointer A
         PTRA_OFS, 0, 15,   u16;
     }
     /// Base address of the register to be accessed through indirect pointer B
-    0x1F, 0x0C, 1, RW, PTR_ADDR_B(ptr_addr_b) {
+    [0x1F, 0x0C, 1, RW, PTR_ADDR_B(ptr_addr_b)] {
         /// Base address of the register to be accessed through indirect pointer B
         PTRB_BASE, 0, 5,   u8;
     }
     /// Offset address of the register to be accessed through indirect pointer B
-    0x1F, 0x10, 2, RW, PTR_OFFSET_B(ptr_offset_b) {
+    [0x1F, 0x10, 2, RW, PTR_OFFSET_B(ptr_offset_b)] {
         /// Offset address of the register to be accessed through indirect pointer B
         PTRB_OFS, 0, 15,   u16;
+    }
+}
+
+impl TX_BUFFER {
+    pub fn write(&mut self) {
+        todo!()
     }
 }
