@@ -1,63 +1,30 @@
-//! Static mappings for the registers of the DW3XXX.
-//!
-//! <div class="warning">
-//! These mappings were not created entirely by hand, so there is a chance that they may not be correct. The register mappings that have
-//! been verified by a human to be correct are labeled as such, but otherwise use at your own risk. If you would like to open a pull-request to
-//! verify a specific register yourself and change the documentation accordingly that would be much appreciated.
-//! </div>
-//!
-//! # Structure
-//!
-//! This module contains a series of types that implement the [`Register`] trait for each register of the device. Additionally, for each
-//! register there is a submodule that contains a series of types for each individual field of that respective register that each implement
-//! the [`Field`] trait. On their own these types do nothing, but their implementations of [`Register`] and [`Field`] contain the necessary
-//! constants and types to statically reference that particular location within the device's register map. For more details see the
-//! documentation for the [`Register`], [`Field`], [`Readable`], and [`Writable`] traits.
-//!
-
-/// A register of the DW3XXX.
-pub trait Register {
-    /// The base address of the register.
-    const BASE_ADDRESS: u8;
-    /// The sub-address of the register.
-    const SUB_ADDRESS: u8;
-    /// The length of the register.
-    const LEN: usize;
-    /// The type representing a view of the register.
-    type RegisterView;
-}
-
-/// A field within a register of the DW3XXX.
-pub trait Field {
-    /// The parent register of the field.
-    type Register: Register;
-    /// The type level representation of the field.
-    type Value;
-    /// The index of the field's first bit within the register.
-    const FIRST_BIT: usize;
-    /// The size of the field in bits.
-    const SIZE: u8;
-}
+use super::{Field, Register};
 
 /// A marker trait for a readable field.
 pub trait Readable: Field {
-    /// Read the field from the register.
-    fn read(
-        register: &<<Self as Field>::Register as Register>::RegisterView,
-    ) -> <Self as Field>::Value {
-        todo!()
-    }
+    /// Read the field from the bytes of its parent register.
+    /// 
+    /// ```rust
+    /// # use dw3xxx::reg::{chan_ctrl::RX_PCODE, Readable};
+    /// let register = [0b01010011, 0b00001101];
+    /// assert_eq!(RX_PCODE::read(&register), 22);
+    /// ```
+    /// 
+    fn read(reg: &Self::RegisterView) -> Self::Value;
 }
 
 /// A marker trait for a writable field.
 pub trait Writable: Field {
-    /// Write the field to the register.
-    fn write(
-        register: &mut <<Self as Field>::Register as Register>::RegisterView,
-        value: <Self as Field>::Value,
-    ) {
-        todo!()
-    }
+    /// Write the field to the bytes of its parent register.
+    /// 
+    /// ```rust
+    /// # use dw3xxx::reg::{chan_ctrl::RX_PCODE, Writable};
+    /// let mut register = [0b00000000, 0b00000000];
+    /// RX_PCODE::write(&mut register, 22);
+    /// assert_eq!(register, [0b00000000, 0b00001101]);
+    /// ```
+    /// 
+    fn write(reg: &mut Self::RegisterView, value: Self::Value);
 }
 
 ///
@@ -108,12 +75,6 @@ macro_rules! impl_registers {
             #[doc = ""]
             #[doc = concat!(" For access to the fields of this register see the [`", stringify!($reg_name_lower), "`] module.  ")]
             #[doc = ""]
-            #[doc = " ## Quick Reference"]
-            #[doc = ""]
-            $(
-                #[doc = concat!(" [`", stringify!($field_name), "`](", stringify!($reg_name_lower), "::", stringify!($field_name), ")  ")]
-            )*
-            #[doc = ""]
             #[allow(non_camel_case_types)]
             pub struct $reg_name;
 
@@ -142,6 +103,7 @@ macro_rules! impl_registers {
                     impl super::Field for $field_name {
                         type Register          = super::$reg_name;
                         type Value             = $field_ty;
+                        type RegisterView      = [u8; $reg_len];
 
                         const FIRST_BIT: usize = $field_start;
                         const SIZE: u8         = $field_size;
@@ -161,10 +123,34 @@ macro_rules! impl_rw {
         impl_rw!(WO, $field_name);
     };
     (RO, $field_name:ident) => {
-        impl super::Readable for $field_name {}
+        impl super::Readable for $field_name {
+            fn read(reg: &Self::RegisterView) -> Self::Value {
+                use crate::reg::Field;
+
+                let mut res = <Self::Value as Default>::default();
+
+                for i in 0..(Self::SIZE as usize) {
+
+                    let register_index = i + Self::FIRST_BIT;
+
+                    let byte_index = register_index / 8;
+                    let bit_index = register_index % 8;
+
+                    let value = ((reg[byte_index] & (1 << bit_index)) >> bit_index);
+
+                    res |= (Self::Value::from(value) << i);
+                }
+
+                res
+            }
+        }
     };
     (WO, $field_name:ident) => {
-        impl super::Writable for $field_name {}
+        impl super::Writable for $field_name {
+            fn write(reg: &mut Self::RegisterView, value: Self::Value) {
+                todo!()
+            }
+        }
     };
 }
 
@@ -249,7 +235,7 @@ impl_registers! {
     ///
     /// This register contains a bit map that allows the receiver to filter which frames it will accept based on type and
     /// destination address. For any of these bits to apply, however, frame filtering must also be enabled using the
-    /// [FFEN](sys_cfg::FFEN) bit in the [SYS_CFG] register.
+    /// [`FFEN`](sys_cfg::FFEN) bit in the [`SYS_CFG`] register.
     ///
     /// For more information on frame filtering please see the [DW3000 User Manual](https://www.qorvo.com/products/d/da008154)
     /// section 5.4 "Frame filtering".
@@ -259,56 +245,56 @@ impl_registers! {
         /// Frame Filtering Allow Beacon
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Beacon" type (binary 000) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAB, 0, 1,  u8;
         ///
         /// Frame Filtering Allow Data
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Data" type (binary 001) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAD, 1, 1,  u8;
         ///
         /// Frame Filtering Allow Acknowledgement
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Acknowledgement" type (binary 010) in
-        /// their header. For more information see [FF_CFG](super::FF_CFG).
+        /// their header. For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAA, 2, 1,  u8;
         ///
         /// Frame Filtering Allow MAC Command Frame
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "MAC" type (binary 011) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAM, 3, 1,  u8;
         ///
         /// Frame Filtering Allow Reserved
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Reserved" type (binary 100) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAR, 4, 1,  u8;
         ///
         /// Frame Filtering Allow Multipurpose
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Multipurpose" type (binary 101) in
-        /// their header. For more information see [FF_CFG](super::FF_CFG).
+        /// their header. For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAMULTI, 5, 1,  u8;
         ///
         /// Frame Filtering Allow Fragmented
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Fragmented" type (binary 110) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAF, 6, 1,  u8;
         ///
         /// Frame Filtering Allow Extended
         ///
         /// When this bit is 0 the frame filtering will ignore frames with the "Extended" type (binary 111) in their header.
-        /// For more information see [FF_CFG](super::FF_CFG).
+        /// For more information see [`FF_CFG`](super::FF_CFG).
         ///
         FFAE, 7, 1,  u8;
         ///
@@ -316,8 +302,8 @@ impl_registers! {
         ///
         /// When this bit is enabled the device will operate as a PAN Coordinator meaning it will only accept frames that match
         /// the following criteria:
-        /// * For "MAC" and "Data" type frames the source PAN ID must match that set in [PAN_ID](super::panadr::PAN_ID)
-        /// * For "Multipurpose" type frames the destination PAN ID must match that set in [PAN_ID](super::panadr::PAN_ID)
+        /// * For "MAC" and "Data" type frames the source PAN ID must match that set in [`PAN_ID`](super::panadr::PAN_ID)
+        /// * For "Multipurpose" type frames the destination PAN ID must match that set in [`PAN_ID`](super::panadr::PAN_ID)
         ///
         FFBC, 8, 1,  u8;
         ///
@@ -333,43 +319,43 @@ impl_registers! {
         /// Data pending for device at LE0 addr
         ///
         /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
-        /// set in [LE_ADDR0](super::le_pend_01::LE_ADDR0) of the [LE_PEND_01](super::LE_PEND_01) register then the automatically
+        /// set in [`LE_ADDR0`](super::le_pend_01::LE_ADDR0) of the [`LE_PEND_01`](super::LE_PEND_01) register then the automatically
         /// transmitted ACK frame will have the PEND bit set.
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         LE0_PEND, 10, 1,  u8;
         /// Data pending for device at LE1 addr
         ///
         /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
-        /// set in [LE_ADDR1](super::le_pend_01::LE_ADDR1) of the [LE_PEND_01](super::LE_PEND_01) register then the automatically
+        /// set in [`LE_ADDR1`](super::le_pend_01::LE_ADDR1) of the [`LE_PEND_01`](super::LE_PEND_01) register then the automatically
         /// transmitted ACK frame will have the PEND bit set.
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         LE1_PEND, 11, 1,  u8;
         ///
         /// Data pending for device at LE2 addr
         ///
         /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
-        /// set in [LE_ADDR2](super::le_pend_23::LE_ADDR2) of the [LE_PEND_23](super::LE_PEND_23) register then the automatically
+        /// set in [`LE_ADDR2`](super::le_pend_23::LE_ADDR2) of the [`LE_PEND_23`](super::LE_PEND_23) register then the automatically
         /// transmitted ACK frame will have the PEND bit set.
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         LE2_PEND, 12, 1,  u8;
         ///
         /// Data pending for device at LE3 addr
         ///
         /// When this bit is 1 and the device receives a Data Request MAC Command frame whose source address matches the address
-        /// set in [LE_ADDR3](super::le_pend_23::LE_ADDR2) of the [LE_PEND_23](super::LE_PEND_23) register then the automatically
+        /// set in [`LE_ADDR3`](super::le_pend_23::LE_ADDR2) of the [`LE_PEND_23`](super::LE_PEND_23) register then the automatically
         /// transmitted ACK frame will have the PEND bit set.
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         LE3_PEND, 13, 1,  u8;
         ///
@@ -377,13 +363,13 @@ impl_registers! {
         ///
         /// When this bit is 0 and the device receives a Data Request MAC Command frame from any node with a short
         /// (16-bit) source address then the automatically transmitted ACK frame will follow the frame filtering rules
-        /// defined by the [LE0_PEND], [LE1_PEND], [LE2_PEND], and [LE3_PEND] fields.
+        /// defined by the [`LE0_PEND`], [`LE1_PEND`], [`LE2_PEND`], and [`LE3_PEND`] fields.
         ///
         /// When this bit is 1 and the device receives a Data Request MAC Command frame from any node with a short
         /// (16-bit) source address then the automatically transmitted ACK frame will have the PEND bit set
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         SSADRAPE, 14, 1,  u8;
         ///
@@ -394,7 +380,7 @@ impl_registers! {
         /// the PEND bit set if this bit is 0.
         ///
         /// Note: in order for this field to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [super::SYS_CFG] register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [super::SYS_CFG] register.
         ///
         LSADRAPE, 15, 1,  u8;
     }
@@ -440,7 +426,7 @@ impl_registers! {
         ///
         /// Delayed Send or Receive Time
         ///
-        /// The value in this register is added to [DREF_TIME](super::DREF_TIME) before either the receiver or transmitter is
+        /// The value in this register is added to [`DREF_TIME`](super::DREF_TIME) before either the receiver or transmitter is
         /// turned on.
         ///
         /// The units are one half of the 499.2 MHz fundamental frequency (≈ 4 ns). The least significant bit of this register is
@@ -459,7 +445,7 @@ impl_registers! {
         ///
         /// Delayed send or receive reference time
         ///
-        /// Used to specify a time at which an an event happened (e.g. beacon was sent). Any value in [DX_TIME](super::DX_TIME)
+        /// Used to specify a time at which an an event happened (e.g. beacon was sent). Any value in [`DX_TIME`](super::DX_TIME)
         /// is added to this register before either the receiver or transmitter is turned on.
         ///
         /// The units are one half of the 499.2 MHz fundamental frequency (≈ 4 ns). The least significant bit
@@ -680,7 +666,7 @@ impl_registers! {
         /// The least significant bit is roughly equivalent to 15.65ps (<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mrow><mn>128</mn><mo>(</mo><mn>499.2</mn><mo>&#xd7;</mo><msup><mn>10</mn><mrow><mo>-</mo><mn>6</mn></mrow></msup><mo>)</mo></mrow></mfrac></math>).
         ///
         /// The value is available here when the leading edge determination and timestamp adjustments
-        /// are completed (when the [CIADONE](super::sys_status::CIADONE) event status flag bit is set).
+        /// are completed (when the [`CIADONE`](super::sys_status::CIADONE) event status flag bit is set).
         ///
         RX_STAMP, 0, 40,  u64;
         ///
@@ -732,8 +718,8 @@ impl_registers! {
         /// Transmitter antenna delay
         ///
         /// Accounts for the delay between the internal digital timestamp of the RMARKER and the time the RMARKER is at the antenna.
-        /// The value is automatically added to the raw timestamp ([TX_RAWST](super::tx_rawst::VALUE)) to get the fully adjusted
-        /// timestamp ([TX_STAMP](super::tx_stamp::TX_STAMP)).
+        /// The value is automatically added to the raw timestamp ([`TX_RAWST`](super::tx_rawst::VALUE)) to get the fully adjusted
+        /// timestamp ([`TX_STAMP`](super::tx_stamp::TX_STAMP)).
         ///
         /// The least significant bit is roughly equivalent to 15.65ps (<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mrow><mn>128</mn><mo>(</mo><mn>499.2</mn><mo>&#xd7;</mo><msup><mn>10</mn><mrow><mo>-</mo><mn>6</mn></mrow></msup><mo>)</mo></mrow></mfrac></math>).
         /// The default antenna delay is `0x4015`, which is approximately 256.74 ns.
@@ -765,15 +751,15 @@ impl_registers! {
         /// automatic transmission of the acknowledgement frame. The time specified is in units of preamble symbols.
         ///
         /// To ensure that the receiver is ready for the first preamble symbol, and assuming that the remote transmitter
-        /// has its [W4R_TIM] parameter set to 0, the recommended minimum settings are 2 and 3 for data rates of 850 kb/s
+        /// has its [`W4R_TIM`] parameter set to 0, the recommended minimum settings are 2 and 3 for data rates of 850 kb/s
         /// and 6.8 Mb/s respectively. This is most important at the 6.8 Mb/s data rate, where preamble sequences are
         /// generally short, and losing even a few preamble symbols could potentially compromise ACK reception.
         ///
-        /// Where the [W4R_TIM] parameter of the remote transmitter is larger than zero, this setting should be increased
+        /// Where the [`W4R_TIM`] parameter of the remote transmitter is larger than zero, this setting should be increased
         /// to ensure that none of the packet is sent before the remote receiver is listening.
         ///
         /// Note: in order for this bit to have an effect, automatic acknowledgement must be enabled by setting the
-        /// [AUTO_ACK](super::sys_cfg::AUTO_ACK) bit of the [SYS_CFG](super::SYS_CFG) register.
+        /// [`AUTO_ACK`](super::sys_cfg::AUTO_ACK) bit of the [`SYS_CFG`](super::SYS_CFG) register.
         ///
         ACK_TIM, 24, 8,  u8;
     }
@@ -2124,11 +2110,5 @@ impl_registers! {
     [0x1F, 0x10, 2, RW, PTR_OFFSET_B(ptr_offset_b)] {
         /// Offset address of the register to be accessed through indirect pointer B
         PTRB_OFS, 0, 15,   u16;
-    }
-}
-
-impl TX_BUFFER {
-    pub fn write(&mut self) {
-        todo!()
     }
 }

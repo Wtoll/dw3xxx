@@ -1,25 +1,36 @@
-//! The high-level interface for the DW3XXX
-//! 
+use embedded_hal::spi::SpiDevice;
 
-/// High-level driver for the DW3XXX
-pub struct DW3XXX {
+use crate::reg::bindings::ReadableRegister;
 
+use super::spi::{SpiWrapper, commands::Command};
+
+pub struct DW3XXX<SPI: SpiDevice> {
+    spi: SpiWrapper<SPI>
 }
 
-impl DW3XXX {
-    /// Constructs a new instance of [`DW3XXX`].
-    pub fn new() -> Self {
-        todo!()
+impl<SPI: SpiDevice> DW3XXX<SPI> {
+    /// Constructs a new instance of a DW3XXX driver.
+    pub fn new(spi: SPI) -> Self {
+        Self {
+            spi: SpiWrapper::new(spi)
+        }
     }
 
-    /// Decomposes an instance of [`DW3XXX`].
-    pub fn decompose(self) -> () {
-        todo!()
-    } 
+    /// Decomposes an instance of a DW3XXX driver into its component singletons.
+    pub fn decompose(self) -> (SPI, ) {
+        (self.spi.decompose(), )
+    }
 
-    /// Clears all interrupts.
+    /// Provides mutable access to the underlying [`SpiWrapper`]
+    pub fn wrapper(&mut self) -> &mut SpiWrapper<SPI> {
+        &mut self.spi
+    }
+
+    /// Clears all interrupts for the device
     pub async fn clear_interrupts(&mut self) -> Result<(), FastCommandError> {
         // Coverage for CLR_IRQS
+
+        self.spi.fast_command(Command::ClrIrqs).expect("Encountered an SPI error");
 
         todo!()
     }

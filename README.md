@@ -23,7 +23,7 @@ This crate is still a work in progress, however, the following is a list of curr
      - [ ] Sanity checked by an actual human being
         * Partially complete
  - [X] SPI transaction helper functions
- - [ ] SPI device implementation using `embedded-hal` traits
+ - [X] SPI device implementation using `embedded-hal` traits
  - [ ] Functions for executing device fast commands
     * Partially complete
  - [ ] Smart interrupt handling

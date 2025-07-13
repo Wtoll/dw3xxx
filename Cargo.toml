@@ -11,5 +11,8 @@ keywords = ["driver", "embedded-hal", "uwb"]
 categories = ["embedded", "no-std", "hardware-support"]
 
 [dependencies]
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
 embedded-hal-nb = "1.0.0"
+ieee802154 = "0.6.1"
 nb = "1.1.0"

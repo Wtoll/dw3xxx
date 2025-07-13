@@ -1,43 +1,39 @@
-//! Helper functions for performing SPI transactions with the DW3XXX
+//! Helper functions for generating SPI transaction headers
 //! 
-//! # Transaction Helper Functions
-//! 
-//! This module includes a series of helper functions for performing SPI transactions with the device.
-//! 
-//! # Header Helper Functions
-//! 
-//! This module also includes a series of helper functions for generating SPI transaction headers for all of the device's functionality.
+//! This module includes a series of helper functions for generating SPI transaction headers for all of the device's functionality.
 //! Each of the four main transaction types (fast command, short addressed, full addressed, and masked write) have their own functions
 //! to generate an SPI header for that transaction type.
 //! 
 //! It should be noted that these functions only generate the headers for each transaction and do not in any way handle sending the headers
 //! or the variable transaction data that must be read or written immediately following the headers.
 //! 
+//! # Functions
+//! 
 //! ## Fast Command
 //! To generate a header for a fast command transaction you may use the helper function [`fast_command`] as follows:
 //! ```rust
-//! # use dw3xxx::ll::{spi::fast_command_header, commands::Command};
+//! # use dw3xxx::spi::{headers::fast_command_header, commands::Command};
 //! let header: [u8; 1] = fast_command_header(Command::ClrIrqs);
 //! ```
 //! 
 //! ## Short Addressed Transaction
 //! To generate a header for a short addressed transaction you may use the helper function [`short_addressed`] as follows:
 //! ```rust
-//! # use dw3xxx::ll::spi::{short_addressed_header, AccessMode};
+//! # use dw3xxx::spi::headers::{short_addressed_header, AccessMode};
 //! let header: [u8; 1] = short_addressed_header(0x12, AccessMode::Read);
 //! ```
 //! 
 //! ## Full Addressed Transaction
 //! To generate a header for a full addressed transaction you may use the helper function [`full_addressed`] as follows:
 //! ```rust
-//! # use dw3xxx::ll::spi::{full_addressed_header, AccessMode};
+//! # use dw3xxx::spi::headers::{full_addressed_header, AccessMode};
 //! let header: [u8; 2] = full_addressed_header(0x05, 0x2C, AccessMode::Read);
 //! ```
 //! 
 //! ## Masked Write Transaction
 //! To generate a header for a masked write transaction you may use the helper function [`masked_write`] as follows:
 //! ```rust
-//! # use dw3xxx::ll::spi::{masked_write_header, MaskedWriteMode};
+//! # use dw3xxx::spi::headers::{masked_write_header, MaskedWriteMode};
 //! let header: [u8; 2] = masked_write_header(0x05, 0x10, MaskedWriteMode::EightBit);
 //! ```
 //! 
@@ -59,33 +55,13 @@
 //! clearing a bit range and then writing to that bit range immediately after.
 //! 
 
-use crate::ll::commands::Command;
-
-/// Execute a fast command
-pub fn fast_command() {
-    todo!()
-}
-
-/// Perform a short addressed SPI transaction.
-pub fn short_addressed() {
-    todo!()
-}
-
-/// Perform a full addressed SPI transaction.
-pub fn full_addressed() {
-    todo!()
-}
-
-/// Perform a masked write SPI transaction.
-pub fn masked_write() {
-    todo!()
-}
+use super::commands::Command;
 
 /// 
 /// Generates a header for a fast command SPI transaction.
 /// 
 /// ```rust
-/// # use dw3xxx::ll::{commands::Command, spi::fast_command_header};
+/// # use dw3xxx::spi::{commands::Command, headers::fast_command_header};
 /// assert_eq!(fast_command_header(Command::ClrIrqs), [0b10100101]);
 /// ```
 /// 
@@ -111,7 +87,7 @@ pub fn fast_command_header(command: Command) -> [u8; 1] {
 /// Generates a header for a short addressed SPI transaction.
 /// 
 /// ```rust
-/// # use dw3xxx::ll::spi::{short_addressed_header, AccessMode};
+/// # use dw3xxx::spi::headers::{short_addressed_header, AccessMode};
 /// // 0x12 is the register file ID for RX_BUFFER_0
 /// assert_eq!(short_addressed_header(0x12, AccessMode::Read), [0b00100100]);
 /// // 0x14 is the register file ID for TX_BUFFER
@@ -142,7 +118,7 @@ pub fn short_addressed_header(base_address: u8, mode: AccessMode) -> [u8; 1] {
 /// Generates a header for a full addressed SPI transaction.
 /// 
 /// ```rust
-/// # use dw3xxx::ll::spi::{full_addressed_header, AccessMode};
+/// # use dw3xxx::spi::headers::{full_addressed_header, AccessMode};
 /// // 0x05 is the register file ID for GPIO_CTRL (GPIO control register) and 0x2C is the sub-register for GPIO_RAW (GPIO raw state).
 /// assert_eq!(full_addressed_header(0x05, 0x2C, AccessMode::Read), [0b01001010, 0b10110000]);
 /// // 0x05 is the register file ID for GPIO_CTRL (GPIO control register) and 0x10 is the sub-register for GPIO_IRQE (GPIO interrupt enable).
@@ -176,7 +152,7 @@ pub fn full_addressed_header(base_address: u8, sub_address: u8, mode: AccessMode
 /// Generates a header for a masked write SPI transaction.
 /// 
 /// ```rust
-/// # use dw3xxx::ll::spi::{masked_write_header, full_addressed_header, MaskedWriteMode, AccessMode};
+/// # use dw3xxx::spi::headers::{masked_write_header, full_addressed_header, MaskedWriteMode, AccessMode};
 /// // 0x05 is the register file ID for GPIO_CTRL (GPIO control register) and 0x10 is the sub-register for GPIO_IRQE (GPIO interrupt enable).
 /// assert_eq!(masked_write_header(0x05, 0x10, MaskedWriteMode::EightBit), [0b11001010, 0b01000001]);
 /// assert_eq!(masked_write_header(0x05, 0x10, MaskedWriteMode::SixteenBit), [0b11001010, 0b01000010]);

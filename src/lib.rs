@@ -1,4 +1,7 @@
 #![no_std]
+#![allow(unused)]
 
-pub mod ll;
-pub mod hl;
+pub mod driver;
+pub mod spi;
+pub mod interrupts;
+pub mod reg;
